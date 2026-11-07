@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Validate owned skill metadata, local Markdown links, packs, and index freshness."""
+"""Validate owned skill metadata, local Markdown links, packs, and index freshness.
+
+--sizes prints each skill's SKILL.md and references/ size in bytes, for the Skill-Size commit trailer.
+"""
 import json
 from pathlib import Path
 import re
@@ -36,6 +39,11 @@ def main():
     for path in ROOT.rglob('*.json'):
         if '.local' not in path.parts and 'node_modules' not in path.parts:
             json.loads(path.read_text())
+    if '--sizes' in sys.argv:
+        for name, (_, rel) in entries.items():
+            folder = (ROOT / rel).parent
+            refs = sum(f.stat().st_size for f in (folder / 'references').rglob('*') if f.is_file()) if (folder / 'references').exists() else 0
+            print(f'{name:16} SKILL.md {(ROOT / rel).stat().st_size:6} bytes  references {refs:6} bytes')
     print('Validated', len(entries), 'skills, packs, Markdown links, JSON, and index.')
 
 
