@@ -1,20 +1,62 @@
 ---
 name: j-research
-description: Investigate an open question or compare options using traceable sources and counterevidence. Use when the answer needs research, rather than reconciliation of an existing claim or task status.
+description: Research how to build something, answer an open question, or compare options from current sources, compiling what is learned into a persistent research vault. Use for "find a way to build X", "what's best practice for Y", "is there something that already does Z", or decisions that need evidence.
 ---
 
-# Research a question
+# Research
 
-Identify the question, intended use, and constraints that could change the answer. Scale the investigation to the decision; a simple lookup needs no research pipeline.
+Research compounds: check what is already known, find what is current, and leave the vault better than you found it. Answer the user's actual question; scale the effort to the decision it supports.
 
-Start with relevant supplied artifacts, project decisions, and authorized connected sources. Treat saved research as leads and check freshness before reuse. Use the research capabilities actually available.
+## 0. Locate the vault
 
-Search the uncertainties that matter, then inspect underlying sources. Prefer primary evidence for technical behavior and attributed claims. A snippet, reachable URL, or several summaries of one announcement does not establish independent support.
+Vault path: `$J_RESEARCH_VAULT`, else `research_vault` in `~/.config/jstack/config.json`. If neither exists, research without a vault and offer once to create one from [the template](assets/vault/). When a vault exists, read its `AGENTS.md` before writing to it; the vault's own rules override this section.
 
-For decisive claims, retain a source link or artifact location, supporting passage, relevant version/date when available, and observation date. Check support for the specific scope. Preserve calculation inputs, units, and assumptions; label estimates and inferences.
+## 1. Pick the mode
 
-Seek counterevidence to the leading conclusion. Resolve conflicts through differences in versions, definitions, populations, or methods, rather than counting agreeing links. State unresolved disagreements that could change the answer.
+- **Lookup.** A single fact with an authoritative source. Check the vault, search, answer with the source. No pipeline, no new pages unless the fact is reusable.
+- **Question.** Explain, compare, or decide. Run steps 2 to 4 and 6.
+- **Build.** "Find a way to build X." Run steps 2 to 6 in order. Do not research implementation detail before scope is decided.
 
-Stop when decision-relevant uncertainties are answered, further searches repeat evidence, or the budget ends. If a decisive source is unavailable, identify the unsupported premise and give a conditional conclusion or useful validation step.
+## 2. Start from the vault
 
-Lead with the answer and decisive citations, then material tradeoffs, uncertainty, and what would change the conclusion. Save a reusable brief and source ledger only when requested or appropriate to the project's storage rules; include corrections and open questions.
+Read the vault's `index.md`, then the relevant pages. A page is reusable if its `reviewed` date is inside its volatility window (high: 30 days, medium: 90, low: 365). Inside the window, reuse it and cite it. Outside, re-verify only the claims the decision depends on, then update the page. Say which parts came from the vault.
+
+## 3. Landscape: what already exists
+
+Before proposing to build anything, find what people already use. Cover:
+
+- Mature options to adopt or buy: open source projects (activity, last release, licence, issues), hosted services (pricing page, limits), and the platform's own built-in way.
+- What practitioners use now and what they regret: run `last30days` on the topic when it is installed, for Reddit, X, YouTube, Hacker News and GitHub discussion. If it is not installed, say the social lane is missing; do not imitate it with a few web searches and call it covered.
+- Official docs and primary sources for each serious option, at the current version.
+
+Write an honest brief: each option with what it gives, what it costs, its known failure modes, and evidence quality. Include "adopt X as is" and "don't build this" when the evidence supports them. In Build mode, stop here and hand the brief to `j-scope` (or, if it is unavailable, ask the user the scope decisions directly). Resume at step 5 with the agreed scope.
+
+## 4. Weigh the evidence
+
+- Primary sources (docs, specs, source code, changelogs, papers) decide technical behaviour. Forum, video, and social posts are experience reports: strong for gotchas, regrets, and what people actually run; weak for how a system behaves.
+- Record the version and date for every decisive claim. A popular answer about an old version is a lead, not support.
+- Several posts repeating one announcement are one source. Look for independent confirmation and for counterevidence to the leading option.
+- Label estimates and your own inferences as such.
+
+## 5. Implementation research (Build mode, after scope)
+
+Research only what is inside the agreed scope. Iterate in rounds:
+
+1. Official docs and reference implementations for the chosen approach; read the code of a good example, not only its README.
+2. Gotchas: GitHub issues on the chosen projects, Stack Overflow (check answer date against the version), Reddit and X threads via `last30days`, conference or tutorial videos (transcripts) from practitioners.
+3. Follow the strongest sources' own links and citations one hop.
+4. After each round, list the questions still open that would change the build. Search those next.
+
+Stop when a round adds nothing that would change the build, or the budget is reached. Deliver a build plan: steps, versions, the reference you are copying from, known pitfalls with their sources, and what is deliberately out of scope.
+
+## 6. Compile into the vault
+
+Follow the vault's `AGENTS.md`. In short: save each decisive source to `raw/` (never edit raw files afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, update `index.md`, and append one line to `log.md`. Do not save every search hit; save what a future you would need to check the conclusion.
+
+## Report
+
+Lead with the answer or recommendation, then the options and why, what would change the conclusion, and open questions. Link the vault page. Keep the chat answer short; the detail lives in the vault.
+
+## Cost
+
+Free sources first. Before paid calls beyond normal search (deep-research agents, X post fetches, scraping credits), state the expected cost; stay under about $2 per run unless the user sets a budget. Tool notes and current pricing: [sources](references/sources.md).

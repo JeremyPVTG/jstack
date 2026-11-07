@@ -108,7 +108,7 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     add = sub.add_parser('install')
     add.add_argument('--target', required=True, help='Explicit agent skills directory')
-    add.add_argument('--pack', choices=['core', 'maintainer'], default='core')
+    add.add_argument('--pack', choices=sorted(json.loads((ROOT / 'packs.json').read_text())), default='core')
     add.add_argument('--skill', action='append', help='Select an owned skill; repeatable')
     add.add_argument('--state-dir', default='~/.local/state/jstack')
     add.add_argument('--dry-run', action='store_true')

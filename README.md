@@ -8,15 +8,21 @@ T3 Code is the primary host. Model choices stay in the session or evaluation con
 
 | Skill | Use it for | Example |
 |---|---|---|
-| [j-review](skills/j-review/SKILL.md) | Reviewing a change, confirming findings, or fixing supplied findings | “Review this branch for reachable bugs. Leave the code unchanged.” |
-| [j-deliver](skills/j-deliver/SKILL.md) | CI repair, validation, publishing, and release readiness | “Check whether this PR is ready using this repo's release rules.” |
-| [j-research](skills/j-research/SKILL.md) | Investigating questions and comparing options with traceable sources | “Compare these approaches using current primary sources; explain what would change your recommendation.” |
-| [j-evidence](skills/j-evidence/SKILL.md) | Checking completion or public claims against source evidence | “Which of these tasks can we actually mark complete?” |
-| [j-skill-audit](skills/j-skill-audit/SKILL.md) | Pruning, packaging, and evaluating skills | “Find overlap in these skills and propose the smallest useful set.” |
+| [j-research](skills/j-research/SKILL.md) | Finding how to build something, answering open questions, and comparing options from current sources. Compiles findings into a persistent research vault. | "Use j-research to find a way to build a self-hosted uptime monitor." |
+| [j-scope](skills/j-scope/SKILL.md) | Drawing the MVP line by questioning you on an honest options brief, and cutting additions that add little | "Use j-scope: how far do we go for the first version?" |
+| [j-evidence](skills/j-evidence/SKILL.md) | Checking completion or public claims against source evidence | "Which of these tasks can we actually mark complete?" |
 
-These skills keep review findings, release state, and completion evidence distinct. They use the target project's rules instead of hardcoding a branch, runner, provider, or approval process.
+Engineering pack: [j-review](skills/j-review/SKILL.md) for reviewing changes and [j-deliver](skills/j-deliver/SKILL.md) for CI repair and release readiness. Maintainer pack: [j-skill-audit](skills/j-skill-audit/SKILL.md).
 
-Early version: structure and installer behavior are tested. Skill behavior and discovery in fresh agent sessions are not yet benchmarked. The core adapts my earlier PR review, CI repair, publishing, and readiness skills; provenance and migration findings are in [the audit](docs/audit.md).
+### The research loop
+
+"Use j-research to find a way to build X" runs in two halves. First a landscape pass: what already exists, what practitioners use and regret, and whether you should build at all. j-scope then asks you the few decisions that set the MVP line. j-research then researches implementation inside that line only: official docs, reference code, GitHub issues, Stack Overflow, and practitioner threads and videos, in rounds until a round changes nothing.
+
+Everything decisive is compiled into a research vault following [Karpathy's LLM wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): immutable captured sources, agent-maintained wiki pages with review dates and volatility, an index, and a log. The next run starts from the vault and re-verifies only what has gone stale. Set the path with `J_RESEARCH_VAULT` or `research_vault` in `~/.config/jstack/config.json`; a starter vault is in [skills/j-research/assets/vault](skills/j-research/assets/vault/).
+
+The social lane (Reddit, X, YouTube, Hacker News) depends on [last30days](https://github.com/mvanhorn/last30days-skill). See [the decision record](docs/decisions/0001-research-sources-and-vault.md) for why, and its safety notes.
+
+**Status:** installer and structure are tested. The skills' effect on agent behaviour has not been measured yet; behavioural evals live in a separate jstack-evals repository.
 
 ## Install
 
@@ -27,7 +33,7 @@ python3 scripts/install.py install --target ~/.claude/skills --dry-run
 python3 scripts/install.py install --target ~/.claude/skills
 ```
 
-Choose your agent's actual skills directory explicitly. The default core pack installs j-review, j-deliver, j-evidence, and j-research. Use `--pack maintainer` for j-skill-audit, or repeat `--skill NAME` to select individual skills. [targets.json](targets.json) lists candidate paths; it does not certify discovery support.
+Choose your agent's actual skills directory explicitly. The default core pack installs j-research, j-scope, and j-evidence. Use `--pack engineering` for j-review and j-deliver, `--pack maintainer` for j-skill-audit, or repeat `--skill NAME` to select individual skills. [targets.json](targets.json) lists candidate paths; it does not certify discovery support.
 
 Existing entries are moved to timestamped backups under `~/.local/state/jstack/`. The installer prints a receipt path. Repeated installs leave matching links alone. It does not alter global rules, agent settings, plugins, or upstream installations.
 

@@ -32,7 +32,7 @@ class Installation(unittest.TestCase):
 
     def test_install_repeat_and_rollback(self):
         self.target.mkdir()
-        original = self.target / 'j-review'
+        original = self.target / 'j-research'
         original.mkdir()
         (original / 'personal.txt').write_text('keep me')
         self.assertEqual(self.run_install().returncode, 0)
@@ -45,27 +45,27 @@ class Installation(unittest.TestCase):
         self.assertEqual(self.rollback().returncode, 0)
         self.assertFalse(original.is_symlink())
         self.assertEqual((original / 'personal.txt').read_text(), 'keep me')
-        self.assertFalse((self.target / 'j-deliver').exists())
+        self.assertFalse((self.target / 'j-scope').exists())
         self.assertEqual(self.rollback().returncode, 0)
 
     def test_preserves_broken_symlink(self):
         self.target.mkdir()
-        old = self.target / 'j-review'
+        old = self.target / 'j-research'
         old.symlink_to('missing-original')
-        self.assertEqual(self.run_install('--skill', 'j-review').returncode, 0)
+        self.assertEqual(self.run_install('--skill', 'j-research').returncode, 0)
         self.assertEqual(self.rollback().returncode, 0)
         self.assertTrue(old.is_symlink())
         self.assertEqual(old.readlink(), Path('missing-original'))
 
     def test_rollback_refuses_changed_destination(self):
         self.assertEqual(self.run_install().returncode, 0)
-        changed = self.target / 'j-review'
+        changed = self.target / 'j-research'
         changed.unlink()
         changed.mkdir()
         (changed / 'new.txt').write_text('later work')
         self.assertNotEqual(self.rollback().returncode, 0)
         self.assertEqual((changed / 'new.txt').read_text(), 'later work')
-        self.assertTrue((self.target / 'j-deliver').is_symlink())
+        self.assertTrue((self.target / 'j-scope').is_symlink())
 
     def test_unknown_skill_does_not_mutate(self):
         self.assertNotEqual(self.run_install('--skill', '../escape').returncode, 0)
