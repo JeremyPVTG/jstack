@@ -1,0 +1,11 @@
+{
+  "core": [
+    "j-review",
+    "j-deliver",
+    "j-evidence",
+    "j-research"
+  ],
+  "maintainer": [
+    "j-skill-audit"
+  ]
+}

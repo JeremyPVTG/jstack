@@ -1,0 +1,4 @@
+.DS_Store
+.external/
+__pycache__/
+.local/

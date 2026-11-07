@@ -1,0 +1,82 @@
+{
+  "purpose": "Read-only registry; not an executable installer or complete dependency lock",
+  "sources": [
+    {
+      "id": "gstack",
+      "repository": "https://github.com/garrytan/gstack",
+      "revision": "e58be617f18606e7e486a875f502dfc50807e626",
+      "observed_on": "2026-11-07",
+      "status": "candidate-not-installed",
+      "compatibility": "native setup required; use supported host adapter, not isolated SKILL.md copies",
+      "inspected_entrypoints": [
+        {
+          "path": "office-hours/SKILL.md",
+          "url": "https://github.com/garrytan/gstack/blob/e58be617f18606e7e486a875f502dfc50807e626/office-hours/SKILL.md",
+          "sha256": "3567c8d98afa05e526f7dcf7157f4d52812a238aa9b821f8f7c9381311939b88",
+          "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        },
+        {
+          "path": "plan-eng-review/SKILL.md",
+          "url": "https://github.com/garrytan/gstack/blob/e58be617f18606e7e486a875f502dfc50807e626/plan-eng-review/SKILL.md",
+          "sha256": "58d96f6f3e296ccc2942e2e1a5732810b18f9f8bcd6ed9338115c99c91a88524",
+          "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        }
+      ]
+    },
+    {
+      "id": "matt",
+      "repository": "https://github.com/mattpocock/skills",
+      "revision": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+      "observed_on": "2026-11-07",
+      "status": "candidate-not-installed",
+      "compatibility": "grill-me calls grilling; Skill tool names and explicit invocation need host mapping",
+      "inspected_entrypoints": [
+        {
+          "path": "skills/productivity/grill-me/SKILL.md",
+          "url": "https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/productivity/grill-me/SKILL.md",
+          "sha256": "caaf8b8de1684f96e26b28f3c29189db5c89cce4b73e1c93d86164f66ef88637",
+          "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        },
+        {
+          "path": "skills/productivity/grilling/SKILL.md",
+          "url": "https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/productivity/grilling/SKILL.md",
+          "sha256": "a146842ed93ca43d833550fa9adf02e58cb63c83fea9d4b4522995b82242d4e2",
+          "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        },
+        {
+          "path": "skills/productivity/handoff/SKILL.md",
+          "url": "https://github.com/mattpocock/skills/blob/4ae2317ddb22b046e26455e4f9c9b3aaaf62212d/skills/productivity/handoff/SKILL.md",
+          "sha256": "4cbb043950dad2ffd3662ff1a5a0b51ae676004b5cae10e3787e8ee7a4ee69d3",
+          "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        }
+      ]
+    },
+    {
+      "id": "pstack",
+      "repository": "https://github.com/cursor/plugins",
+      "revision": "6b0300214a09fd6029cfb7077043125758cd1fd2",
+      "observed_on": "2026-11-07",
+      "status": "candidate-not-installed",
+      "compatibility": "canonical source; Cursor dependencies need adapter or standalone mirror review",
+      "inspected_entrypoints": [
+        {
+          "path": "pstack/skills/automate-me/SKILL.md",
+          "url": "https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/automate-me/SKILL.md",
+          "sha256": "30b35f3628c4fd8c11af0ada06d14cdc3b28901810caca2480f627d4d21acfbe",
+          "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        },
+        {
+          "path": "pstack/skills/show-me-your-work/SKILL.md",
+          "url": "https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/show-me-your-work/SKILL.md",
+          "sha256": "920a8217cbb62f92a2222fb81fc9eab17ecd554a0277e444a95a927195139bd1",
+          "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        }
+      ]
+    }
+  ],
+  "pstack_standalone_candidate": {
+    "repository": "https://github.com/backnotprop/pstack",
+    "revision": "f104aa8f821a3f7397318b0dc8ad2f7e4a1f8bc7",
+    "status": "mirror README reviewed; divergence and dependencies require verification"
+  }
+}

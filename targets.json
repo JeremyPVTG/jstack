@@ -1,0 +1,11 @@
+{
+  "note": "Candidate paths only. Select one explicitly; discovery has not been verified in fresh agent sessions. T3 uses the selected provider's discovery mechanism.",
+  "candidates": {
+    "claude": "~/.claude/skills",
+    "codex": "~/.codex/skills",
+    "cursor": "~/.cursor/skills",
+    "shared": "~/.agents/skills",
+    "hermes": "~/.hermes/skills"
+  },
+  "verified": []
+}
