@@ -1,9 +1,12 @@
 {
   "core": [
+    "j-research",
+    "j-scope",
+    "j-evidence"
+  ],
+  "engineering": [
     "j-review",
-    "j-deliver",
-    "j-evidence",
-    "j-research"
+    "j-deliver"
   ],
   "maintainer": [
     "j-skill-audit"
