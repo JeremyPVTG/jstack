@@ -81,6 +81,32 @@ class XBookmarksTest(unittest.TestCase):
         self.assertEqual(closed, ['https://github.com/org/repo/issues/7'])
         self.assertEqual((rows['333333']['state'], rows['333333']['date']), ('researched', '2026-11-05'))
 
+    def test_reassign_clears_the_issue_link_and_closes_the_issue(self):
+        rows = {}
+        xb.apply(rows, [{'id': '333333', 'state': 'to-research', 'area': 'work', 'author': 'co', 'title': 'Funding', 'note': 'why', 'outcome': 'https://github.com/org/repo/issues/7'}], AREAS, '2026-11-01')
+        xb.save(self.vault, self.cfg, rows, None)
+        calls = []
+        with mock.patch.object(xb, 'gh', side_effect=lambda *a: calls.append(a) or ''):
+            xb.record(self.vault, self.cfg, [{'id': '333333', 'state': 'to-research', 'area': 'tooling', 'outcome': ''}], '2026-11-07')
+        self.assertEqual(calls[0][:3], ('issue', 'close', 'https://github.com/org/repo/issues/7'))
+        row = xb.load(self.vault, self.cfg)[0]['333333']
+        self.assertEqual((row['area'], row['outcome'], row['date']), ('tooling', '', '2026-11-07'))
+
+    def test_classifier_prompt_carries_owner_corrections(self):
+        cfg = {'areas': AREAS, 'calibration': ['Founder reading goes to tooling, not work.'], 'classifier': ['fake']}
+        out = json.dumps({'structured_output': {'decisions': [{'id': '111111', 'state': 'ignored'}]}})
+        with mock.patch.object(xb.subprocess, 'run', return_value=mock.Mock(returncode=0, stdout=out)) as run:
+            xb.classify(cfg, [{'id': '111111', 'author': 'dev', 'text': 'x'}])
+        self.assertIn('Founder reading goes to tooling, not work.', run.call_args.kwargs['input'])
+
+    def test_flags_queue_items_older_than_thirty_days(self):
+        rows = {}
+        xb.apply(rows, [{'id': '111111', 'state': 'to-research', 'area': 'tooling', 'author': 'dev', 'title': 'Old tool', 'note': 'why'}], AREAS, '2026-09-01')
+        xb.apply(rows, [{'id': '222222', 'state': 'to-research', 'area': 'tooling', 'author': 'dev', 'title': 'New tool', 'note': 'why'}], AREAS, '2026-11-01')
+        self.assertEqual(list(xb.stale(rows, '2026-11-07')), ['111111'])
+        xb.save(self.vault, self.cfg, rows, None)
+        self.assertIn('1 queued over 30 days, keep or ignore: Old tool', xb.record(self.vault, self.cfg, [], '2026-11-07'))
+
 
 if __name__ == '__main__':
     unittest.main()
