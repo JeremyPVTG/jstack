@@ -1,18 +1,16 @@
 ---
 name: j-skill-audit
-description: Audit and improve a skill collection for routing, overlap, portability, and demonstrated usefulness. Use when pruning, packaging, updating, or evaluating agent skills.
+description: Prune or rework agent skills by checking instruction value, overlap, dependencies, and observed task outcomes. Use for skill audits and consolidation, not ordinary code review.
 ---
 
-# Improve a skill collection
+# Audit a skill collection
 
-Inventory entrypoints, references, scripts, licenses, install locations, and callers. Distinguish installed availability from demonstrated use. Preserve origin and revision information.
+For each skill, identify its intended task and the decision it improves beyond the model and current host instructions. Inspect callers, references, scripts, and provenance before deleting or merging it. Installed availability is not usage evidence.
 
-For each skill choose keep, merge, split, delegate upstream, project-local, or retire. Merge only when invocation and outcomes overlap; package related independent skills without loading them all. Move project facts and host mechanics to the owning project or adapter. Remove generic reminders and historical incident details that no longer change a decision.
+Choose keep, narrow, merge, move to the project, use upstream, or retire. Remove duplicated host rules and generic advice. Merge shared outcomes, not merely shared vocabulary; a pack need not load all its skills.
 
-For upstream choices inspect the actual skill and dependency closure at a recorded revision. Check tool assumptions, invocation policy, external effects, and update behavior. Link rather than copy where possible. A README description alone supports a candidate, not a compatibility claim.
+Inspect upstream entrypoints and dependencies at a recorded revision before recommending replacement. Preserve attribution and flag unverified compatibility.
 
-Write concise discriminating descriptions. Keep the entrypoint focused on decisions and essential constraints; load conditional detail from references. Prefer deterministic scripts for repeated computation and extraction.
+Compare candidate and baseline on realistic tasks, including close non-triggers, with matched settings. Judge actual outcomes, friction, and cost. Shorter text and valid metadata do not prove improvement.
 
-Evaluate routing with both intended requests and nearby requests that should not trigger. Evaluate behavior on realistic artifacts and observable outcomes, including missing tools, moved revisions, and existing authorization. Compare baseline and candidate on the same cases, recording quality, time, tokens when available, and unintended effects. Independent behavioral runs need permitted tools and sufficient task scope; static validation alone is not a capability benchmark.
-
-Stage changes with rollback and migration notes. Do not call a skill frontier or state of the art without comparative evidence. Report tested behavior separately from planned evaluations.
+Stage reversible changes and identify what still needs behavioral evidence. Retain a skill only when its benefit justifies its maintenance and context cost.

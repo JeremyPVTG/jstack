@@ -1,22 +1,20 @@
 ---
 name: j-research
-description: Investigate a question, compare options, or explain a disputed result using traceable sources. Use for evidence-backed research and recommendations; use j-evidence to reconcile existing claims or completion status.
+description: Investigate an open question or compare options using traceable sources and counterevidence. Use when the answer needs research, rather than reconciliation of an existing claim or task status.
 ---
 
 # Research a question
 
-Establish the question, intended use, and constraints that could change the answer. Infer routine details from context; ask only when a missing decision materially changes the investigation. Match depth to the stakes. A simple lookup does not need a research pipeline.
+Identify the question, intended use, and constraints that could change the answer. Scale the investigation to the decision; a simple lookup needs no research pipeline.
 
-Start with relevant existing work: supplied artifacts, project decisions, and authorized connected sources. Treat saved research as leads, checking freshness before reuse. Distinguish a historical decision from current evidence. Research tools available in this session determine the method; do not assume a hosted deep-research service, start delegates, or switch providers merely because a workflow names one.
+Start with relevant supplied artifacts, project decisions, and authorized connected sources. Treat saved research as leads and check freshness before reuse. Use the research capabilities actually available.
 
-Break a broad question into the uncertainties that matter to the decision. Search those uncertainties, then inspect the underlying sources. Prefer primary evidence for technical behavior and attributed claims; use secondary sources to discover leads and understand competing interpretations. Search snippets, source reachability, and multiple pages repeating one announcement do not establish independent support.
+Search the uncertainties that matter, then inspect underlying sources. Prefer primary evidence for technical behavior and attributed claims. A snippet, reachable URL, or several summaries of one announcement does not establish independent support.
 
-For consequential claims, retain the source URL or artifact path, relevant passage or location, publication or revision date when available, and observation date. Verify that the source supports the specific claim, scope, and version. For calculations, preserve inputs, units, assumptions, and arithmetic. Label estimates and inferences separately from reported facts. Do not invent dates or citations for inaccessible material.
+For decisive claims, retain a source link or artifact location, supporting passage, relevant version/date when available, and observation date. Check support for the specific scope. Preserve calculation inputs, units, and assumptions; label estimates and inferences.
 
-Test the leading conclusion against counterevidence and plausible alternatives. When sources conflict, investigate differences in date, definitions, population, methodology, or incentives. Explain unresolved disagreement and whether it changes the recommendation. Do not resolve uncertainty by counting agreeing links.
+Seek counterevidence to the leading conclusion. Resolve conflicts through differences in versions, definitions, populations, or methods, rather than counting agreeing links. State unresolved disagreements that could change the answer.
 
-Stop when the decision-relevant questions are adequately supported, further searches repeat existing evidence, or the task's budget is reached. No fixed source quota or mandatory panel. If an essential source or tool is unavailable, finish independent work and identify the specific conclusion that remains unsupported.
+Stop when decision-relevant uncertainties are answered, further searches repeat evidence, or the budget ends. If a decisive source is unavailable, identify the unsupported premise and give a conditional conclusion or useful validation step.
 
-Lead with the answer or recommendation. Give the decisive evidence with nearby citations, material tradeoffs, uncertainty, and what would change the conclusion. When the user needs a decision, identify the next action or smallest useful validation; when they need understanding, answer without manufacturing an action plan.
-
-For a substantial reusable investigation, save a concise brief and source ledger in the requested or project-designated location. Record corrections and open questions alongside the conclusion; follow the project's storage and retention rules. Do not create a database, export private source text, or duplicate artifacts just to demonstrate research activity. A research request does not authorize outreach, purchases, tracker changes, or publication.
+Lead with the answer and decisive citations, then material tradeoffs, uncertainty, and what would change the conclusion. Save a reusable brief and source ledger only when requested or appropriate to the project's storage rules; include corrections and open questions.

@@ -1,16 +1,16 @@
 ---
 name: j-evidence
-description: Reconcile a task or claim with source evidence and report or apply the requested status change. Use for tracker reconciliation, completion checks, or claims review.
+description: Reconcile task completion or public claims against existing evidence. Use for tracker updates, completion checks, or claims review; investigate open questions with j-research.
 ---
 
 # Reconcile evidence and state
 
-Identify the claim or task and its completion criteria. Read authoritative artifacts and current destination state where available. Separate intention, draft, saved state, execution, and observed outcome.
+Identify the claim and its completion criteria. Read authoritative artifacts and current destination state. For each conclusion, retain the source, date or revision, what it proves, and the missing evidence.
 
-For each proposed change, show the source, observed date or revision, what it proves, and what remains uncertain. Resolve contradictory sources rather than silently selecting the convenient one. Missing evidence means unknown, not failure or success.
+Keep intention, draft, saved state, execution, and observed outcome distinct. Resolve contradictory sources; absent evidence means unknown. A passing local check is not deployment, and a configured credential is not a successful operation.
 
-For tracker updates, inspect the actual property schema and dependencies. Apply only authorized changes, honoring the user's requested review order; read back the resulting state. Do not assume a formula or rollup is writable.
+For requested tracker changes, inspect the property schema and dependencies, honor the user's review order, and read back the result. A formula or rollup may not be writable.
 
-For public claims, verify attribution, customer or partner status, quantitative claims, and disclosure choices against supplied or authorized sources. Mark unsupported claims for correction and draft grounded wording. Do not publish or contact others unless explicitly authorized.
+For public copy, check attribution, customer or partner status, quantities, and disclosure choices. Replace unsupported claims with grounded wording while preserving supported detail.
 
-Report the resulting state and its limits. A saved draft is not submission; a passing local check is not deployment; credentials configured are not a successful end-to-end operation.
+Report the resulting state and its limits. Updating a tracker or editing copy does not imply authorization to publish or contact anyone.

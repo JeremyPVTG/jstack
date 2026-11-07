@@ -1,18 +1,16 @@
 ---
 name: j-review
-description: Review a code change or address supplied review findings, with evidence tied to a specific revision. Use for review, red-team, confirmation, or bounded review fixes.
+description: Review a code diff, confirm earlier findings, or fix supplied findings. Tie each verdict to a revision and a reachable failure; distinguish confirmed defects from hypotheses.
 ---
 
 # Review a change
 
-Choose the requested mode: assess, confirm earlier findings, or fix supplied findings. An assessment is read-only apart from requested report artifacts; a request to review alone does not authorize fixes or publishing.
+Choose the requested mode: assess, confirm, or fix. Assess and confirm leave source unchanged. Pin the base and target revisions; inspect the diff and relevant callers before trusting the description. If the head changes, inspect the delta before extending the verdict.
 
-Read the task and repository instructions. Record base and target revision and inspect the actual diff and relevant callers. For a moving branch, state which revision was reviewed; inspect new changes before extending the verdict to a newer head.
+A finding needs a location, reachable trigger, observable consequence, and supporting code path or reproduction. Label unresolved hypotheses separately. Accept a clean diff without manufacturing findings. Distinguish environment failures from defects in the change.
 
-Find consequential defects within scope. For each finding show location, trigger, observed or traceable failure, impact, and the smallest remedy. Separate demonstrated failures from unresolved hypotheses. Prioritize correctness, security boundaries, data loss, and missing behavior over taste. Never invent findings to fill a quota.
+For confirmation, reconcile each earlier finding as resolved, partial, unresolved, or inapplicable. Check for defects introduced by the fix without restarting an unrelated audit.
 
-In confirmation mode, reconcile each supplied finding as resolved, partial, unresolved, or no longer applicable. Check new defects introduced by the fixes without restarting an unrelated audit.
+For a requested fix, reproduce or trace the defect, then make the smallest correction. Add a regression test when it guards meaningful behavior; verify it detects the original defect when practical. An already-fixed finding does not automatically need another test.
 
-In fix mode, reproduce or trace the finding before changing code. Preserve others' edits. Add a regression test when it guards meaningful behavior; establish that it detects the original defect when practical. Build errors, prose edits, and already-fixed findings do not automatically need new tests. Use the project's permitted execution environment. Publishing requires task authorization; a review verdict alone does not grant it.
-
-Report revision, findings ordered by impact, validation performed, and coverage limits. Say no actionable findings when warranted; that does not prove the whole system correct. Use [the evidence guide](references/evidence.md) when deciding whether a finding is substantiated.
+Report the reviewed revision, actionable findings, validation, and material coverage limits. A local finding marked resolved does not itself authorize resolving an external review thread or publishing the change.
