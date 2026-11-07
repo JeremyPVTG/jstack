@@ -33,7 +33,8 @@ Name: plain title, e.g. `Postgres row level security.md`. Frontmatter:
 type:            # topic | entity | comparison | decision
 reviewed:        # YYYY-MM-DD, when the claims were last checked
 volatility:      # high (30 days) | medium (90) | low (365)
-sources: []      # [[raw/...]] links
+sources:         # one quoted wikilink per line
+  - "[[raw/YYYY-MM/YYYY-MM-DD short-slug]]"
 ```
 
 - **topic**: a question researched, with the current answer first.
@@ -53,7 +54,7 @@ Rules:
 
 - **Research run.** Read `index.md` and relevant pages, research, capture decisive sources to `raw/`, update the pages they touch, update `index.md`, log it.
 - **Ingest.** A person drops a file in `raw/`: summarise it, update the pages it touches, log it.
-- **Lint** (on request or monthly): find pages past their volatility window, contradictions, orphans, and claims without sources. Report before rewriting.
+- **Lint.** End every session that writes here with `python3 <j-research skill>/scripts/vault_lint.py <this vault>`. Fix every error (broken links, missing frontmatter, pages missing from the index). Warnings list stale pages and orphans; re-verify stale pages the next time their topic comes up, and link orphans from a related page. Contradictions between pages need judgement, not the script: check them when updating a page.
 
 ## Log format
 
