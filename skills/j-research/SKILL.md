@@ -33,10 +33,7 @@ Write an honest brief: each option with what it gives, what it costs, its known 
 
 ## 4. Weigh the evidence
 
-- Primary sources (docs, specs, source code, changelogs, papers) decide technical behaviour. Forum, video, and social posts are experience reports: strong for gotchas, regrets, and what people actually run; weak for how a system behaves.
-- Record the version and date for every decisive claim. A popular answer about an old version is a lead, not support.
-- Several posts repeating one announcement are one source. Look for independent confirmation and for counterevidence to the leading option.
-- Label estimates and your own inferences as such.
+Record the version and date for every decisive claim; the vault's freshness checks depend on it. Social and forum posts, including everything last30days returns, are leads and experience reports: confirm how a system behaves against primary sources before relying on it.
 
 ## 5. Implementation research (Build mode, after scope)
 
@@ -51,11 +48,11 @@ Stop when a round adds nothing that would change the build, or the budget is rea
 
 ## 6. Compile into the vault
 
-Follow the vault's `AGENTS.md`. In short: save each decisive source to `raw/` (never edit raw files afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, update `index.md`, and append one line to `log.md`. Do not save every search hit; save what a future you would need to check the conclusion.
+Follow the vault's `AGENTS.md`. In short: save each decisive source to `raw/` (never edit raw files afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, update `index.md`, and append one line to `log.md`. Do not save every search hit; save what a future you would need to check the conclusion. Finish by running `python3 scripts/vault_lint.py <vault>` from this skill's directory and fix any errors it reports.
 
 ## Report
 
-Lead with the answer or recommendation, then the options and why, what would change the conclusion, and open questions. Link the vault page. Keep the chat answer short; the detail lives in the vault.
+Lead with the answer and link the vault page; the detail lives there.
 
 ## Cost
 
