@@ -35,7 +35,7 @@ Run `python3 scripts/x_bookmarks.py sweep`. It:
 1. syncs issues (opens any missing, marks bookmarks researched when their issue closes),
 2. lists unseen bookmarks, expanding link-only posts to their article,
 3. classifies them with a model that has no tools, using [the triage rules](references/triage.md) and the configured areas,
-4. records the decisions in the ledger and a line in the vault's `log.md`.
+4. records the decisions in the ledger and a line in the vault's `log.md`, and lists queue items older than 30 days for the owner to keep or ignore.
 
 To run it weekly, schedule `scripts/sweep.sh` (it prints the counts and shows a notification) from a host that may read the browser's data. On macOS a plain launchd job cannot: the cookie copy fails with `EPERM` unless the process has browser-data or Full Disk Access, so schedule it in the agent app that already has that permission. Set `x_bookmarks.classifier` to the command list to run the classifier with, for example to pick the account. To sweep by hand with your own judgement instead, run `new`, decide each item by the triage rules, write the decisions as JSON (`[{"id", "state", "area", "author", "title", "note"}]`) and run `record`.
 
@@ -47,3 +47,7 @@ When asked to research the queue: run `queue` (optionally with an area), pick wh
 - Issue areas: work happens in the issue; closing it moves the bookmark to researched on the next sync.
 
 Report what moved and link the ledger.
+
+## Corrections
+
+When the owner overrides a triage decision, record it (`{"id", "area": "<new area>", "outcome": ""}` to move it, or `{"id", "state": "ignored"}`; a replaced issue is closed with a comment). Then run `calibrate "<rule>"` with the general rule behind the correction, not the single case, so the next sweep follows it.
