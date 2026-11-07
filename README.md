@@ -1,6 +1,8 @@
 # jstack
 
-Skills and workflows I use with coding agents. Includes original skills, adaptations, and a short list of tools I recommend.
+Skills and workflows I use in T3 Code, across models. Includes original skills, adaptations, and a short list of tools I recommend.
+
+T3 Code is the primary host. Model choices stay in the session or evaluation configuration; the skills do not hardcode a provider or account. See [T3 integration and pinned upstream source paths](hosts/t3.md).
 
 ## Start here
 

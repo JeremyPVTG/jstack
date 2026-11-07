@@ -1,5 +1,9 @@
 # Package decisions
 
+## Primary host and model independence
+
+Optimize for T3 Code across selected models. Keep provider-specific mechanics in the host integration reference and use current runtime instructions. Model agnostic describes the skill design; behavioral transfer must still be measured per provider/model in T3. Standalone agent CLIs are optional targets, not substitutes for T3 integration trials.
+
 ## Focused skills, selected packs
 
 Skills are the discovery unit; packs are the installation unit. A pack does not inject all its instructions into a task. Keep independent capabilities discoverable by their own descriptions. Use modes only when they share an outcome and evidence contract, as review/confirm/fix do.

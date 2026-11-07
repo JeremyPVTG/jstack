@@ -1,5 +1,5 @@
 {
-  "note": "Candidate paths only. Select one explicitly; discovery has not been verified in fresh agent sessions. T3 uses the selected provider's discovery mechanism.",
+  "note": "T3 discovery depends on the selected provider adapter and runtime. Candidate paths are not certified. Select one explicitly and check collisions before installation.",
   "candidates": {
     "claude": "~/.claude/skills",
     "codex": "~/.codex/skills",
@@ -7,5 +7,7 @@
     "shared": "~/.agents/skills",
     "hermes": "~/.hermes/skills"
   },
-  "verified": []
+  "verified": [],
+  "primary_host": "t3-code",
+  "integration_reference": "hosts/t3.md"
 }
