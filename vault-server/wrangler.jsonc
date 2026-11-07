@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jvault",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "observability": { "enabled": true },
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "9fd0578605934d15a830a221c91922b6" }],
+  "ratelimits": [{ "name": "RATE_LIMITER", "namespace_id": "3001", "simple": { "limit": 120, "period": 60 } }],
+  "vars": {
+    "VAULT_REPO": "JeremyPVTG/research-vault",
+    "SKILLS_REPO": "JeremyPVTG/jstack",
+    "ALLOWED_GITHUB_ID": "222706595"
+  }
+  // Secrets: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET (GitHub OAuth App), VAULT_GITHUB_TOKEN (fine-grained token: research-vault contents read/write)
+}
