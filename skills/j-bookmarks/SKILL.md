@@ -37,7 +37,7 @@ Run `python3 scripts/x_bookmarks.py sweep`. It:
 3. classifies them with a model that has no tools, using [the triage rules](references/triage.md) and the configured areas,
 4. records the decisions in the ledger and a line in the vault's `log.md`.
 
-To run it weekly, load a launchd agent that runs `scripts/sweep.sh` (it shows a notification with the counts). To sweep by hand with your own judgement instead, run `new`, decide each item by the triage rules, write the decisions as JSON (`[{"id", "state", "area", "author", "title", "note"}]`) and run `record`.
+To run it weekly, schedule `scripts/sweep.sh` (it prints the counts and shows a notification) from a host that may read the browser's data. On macOS a plain launchd job cannot: the cookie copy fails with `EPERM` unless the process has browser-data or Full Disk Access, so schedule it in the agent app that already has that permission. Set `x_bookmarks.classifier` to the command list to run the classifier with, for example to pick the account. To sweep by hand with your own judgement instead, run `new`, decide each item by the triage rules, write the decisions as JSON (`[{"id", "state", "area", "author", "title", "note"}]`) and run `record`.
 
 ## Work the queue
 
