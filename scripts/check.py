@@ -27,14 +27,14 @@ def main():
         (ROOT / 'INDEX.md').write_text(index)
     assert (ROOT / 'INDEX.md').read_text() == index, 'Run with --write-index'
     for path in ROOT.rglob('*.md'):
-        if '.local' in path.parts:
+        if '.local' in path.parts or 'node_modules' in path.parts:
             continue
         for link in re.findall(r'\]\(([^)]+)\)', path.read_text()):
             if ':' in link or link.startswith('#'):
                 continue
             assert (path.parent / link.split('#')[0]).exists(), str(path) + ': ' + link
     for path in ROOT.rglob('*.json'):
-        if '.local' not in path.parts:
+        if '.local' not in path.parts and 'node_modules' not in path.parts:
             json.loads(path.read_text())
     print('Validated', len(entries), 'skills, packs, Markdown links, JSON, and index.')
 

@@ -9,7 +9,13 @@ Research compounds: check what is already known, find what is current, and leave
 
 ## 0. Locate the vault
 
-Vault path: `$J_RESEARCH_VAULT`, else `research_vault` in `~/.config/jstack/config.json`. If neither exists, research without a vault and offer once to create one from [the template](assets/vault/). When a vault exists, read its `AGENTS.md` before writing to it; the vault's own rules override this section.
+Use the first that is available:
+
+1. **Vault MCP server** (tools named `guide`, `search`, `read`, `write_page`, `capture_source`, `append_log`, `lint`; see [vault-server](../../vault-server/)). Call `guide` once for the rules and index. Use `search` and `read` to find pages, `capture_source` for raw sources, `write_page` (with the `sha` from `read`) for wiki pages and the index, `append_log`, then `lint`. Works from any device.
+2. **Local folder**: `$J_RESEARCH_VAULT`, else `research_vault` in `~/.config/jstack/config.json`. Read its `AGENTS.md` before writing; finish with `scripts/vault_lint.py`.
+3. **Neither**: research without a vault and offer once to create one from [the template](assets/vault/).
+
+The vault's own rules override this section.
 
 ## 1. Pick the mode
 
@@ -48,7 +54,7 @@ Stop when a round adds nothing that would change the build, or the budget is rea
 
 ## 6. Compile into the vault
 
-Follow the vault's `AGENTS.md`. In short: save each decisive source to `raw/` (never edit raw files afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, update `index.md`, and append one line to `log.md`. Do not save every search hit; save what a future you would need to check the conclusion. Finish by running `python3 scripts/vault_lint.py <vault>` from this skill's directory and fix any errors it reports.
+Follow the vault's `AGENTS.md`. In short: save each decisive source to `raw/` (never edit raw files afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, update `index.md`, and append one line to `log.md`. Do not save every search hit; save what a future you would need to check the conclusion. Finish with lint (the server's `lint` tool, or `python3 scripts/vault_lint.py <vault>` from this skill's directory) and fix any errors it reports.
 
 ## Report
 
