@@ -25,7 +25,7 @@ Read `index.md`, then the relevant pages. A page is reusable inside its volatili
 
 Before proposing to build anything, find what people already use: mature open source projects (activity, last release, licence, issues), hosted services (pricing, limits), the platform's built-in way, and official docs for each at the current version. For what practitioners use and regret, run `last30days`; if it is not installed, say the social lane is missing rather than imitating it with a few web searches.
 
-Pick search tools per lane from [sources](references/sources.md). When two or more lanes need real digging, give each to a subagent with a fresh context and a short brief (the question, its lane, what the vault already says), all in one message, and synthesize the results yourself. One-lane questions stay inline.
+Pick search tools per lane from [sources](references/sources.md). When two or more lanes need real digging, give each to a subagent with a fresh context and a [lane brief](references/lane-brief.md), all in one message, and synthesize the results yourself. Subagents search and report; only you write to the vault. One-lane questions stay inline.
 
 Write an honest brief: each option with what it gives, what it costs, its failure modes, and evidence quality, including "adopt X as is" and "don't build this" when the evidence supports them. In Build mode, stop here and hand the brief to `j-scope` (or ask the user the scope decisions directly), then resume at step 5 inside the agreed scope.
 

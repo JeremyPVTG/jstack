@@ -13,7 +13,7 @@ Only facts an agent would not already know. Each carries the date it was last ch
 | Fallback | The host's own web search and fetch | Use when none of the three is connected, and say so in the coverage line. |
 | Paid multi-step research | Exa `agent_run`, Firecrawl agent, Tavily research | Billed per run. Check their citations like any other summary. |
 | Video transcripts | `yt-dlp --write-auto-subs --skip-download` | Auto-captions mangle names and numbers; confirm anything decisive elsewhere. |
-| Vault search | `rg`, or the Obsidian CLI (`obsidian search query=...`) | The official CLI needs Obsidian 1.12.7+ with the app running. Add a search index such as qmd only when `index.md` no longer fits in context. |
+| Vault search | jvault `search` (keyword plus meaning, via Cloudflare AI Search); locally `rg`, or the Obsidian CLI (`obsidian search query=...`) | jvault's index re-syncs from GitHub every 10 minutes; a page written in the last few minutes from the Mac may only match by keyword. The Obsidian CLI needs Obsidian 1.12.7+ with the app running. |
 
 In the docs and code lanes, query two of the three providers and merge results by URL: in the 2026-11-07 test the same question returned no overlapping results across them. Searches cost a credit or two each. Name the providers used in the report's coverage line.
 
