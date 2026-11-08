@@ -1,6 +1,6 @@
 ---
 name: j-research
-description: Use this skill before answering any question that depends on facts that can change: versions, prices, limits, best practice, what tools or services exist, whether something is ready for production, or how to build or choose something. It checks the research vault first, searches current sources, and saves what it learns. Training knowledge is not enough for these questions. Not for code edits, writing, or explaining stable concepts.
+description: Use this skill before answering any question that depends on facts that can change: versions, prices, limits, best practice, what tools or services exist, whether something is ready for production or safe to rely on, or how you would build, set up or choose something for the user. It checks the research vault first, searches current sources, and saves what it learns. Training knowledge is not enough for these questions, even when they sound like design advice. Not for code edits, writing, or explaining stable concepts.
 ---
 
 # Research
@@ -13,7 +13,7 @@ Use the vault MCP server if connected (call its `guide` once), else the local va
 
 ## 1. Pick the mode
 
-- **Lookup.** A single fact with an authoritative source. Check the vault, search, answer with the source. No pipeline, no new pages unless the fact is reusable.
+- **Lookup.** A single fact with an authoritative source. Check the vault, search with one provider, and answer from the authoritative page with its link and date; do not corroborate a documented fact elsewhere. No pipeline, no new pages unless the fact is reusable.
 - **Question.** Explain, compare, or decide. Run steps 2 to 4 and 6.
 - **Build.** "Find a way to build X." Run steps 2 to 6 in order. Do not research implementation detail before scope is decided.
 
@@ -47,7 +47,7 @@ Follow the vault's `AGENTS.md`: save each decisive source to `raw/` (never edite
 
 ## Report
 
-Lead with the answer and link the vault page; the detail lives there. End with one coverage line: each lane searched, the providers used and what each gave, including empty or missing ones (for example "social: last30days not installed").
+Lead with the answer and link the vault page; the detail lives there. Make the evidence status visible: tie each decisive fact to its source and date, mark conclusions you drew yourself as inference, and say plainly what you looked for and did not find. When a vault page you used was past its window, say so and what changed. End with one coverage line: each lane searched, the providers used and what each gave, including empty or missing ones (for example "social: last30days not installed").
 
 When the research feeds a build, buy, or scope decision and the vault has a research council brief, offer that review before the decision is acted on.
 
