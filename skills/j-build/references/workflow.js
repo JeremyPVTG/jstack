@@ -12,7 +12,8 @@ export const meta = {
 
 // args: { goal: string, base: string, buildFile?: string, checks?: string[] }
 // goal is one neutral sentence; base, buildFile and checks come from the repository's build file.
-// Fails closed: CLEAN only when every lens ran, every finding was refuted or fixed, and every check passed.
+// Fails closed: CLEAN only when every lens ran and every finding was refuted or fixed; when something was fixed,
+// every check must pass afterwards. With nothing fixed the code is unchanged, and j-build's Verify stage runs the checks.
 const goal = (args && args.goal) || 'the change on this branch'
 const base = (args && args.base) || 'origin/main'
 const checks = (args && args.checks) || []
@@ -67,7 +68,7 @@ const VERDICT = {
 const FIXED = {
   type: 'object',
   properties: {
-    fixed: { type: 'array', items: { type: 'string' } },
+    fixed: { type: 'array', items: { type: 'integer' } },
     notFixed: { type: 'array', items: { type: 'string' } },
     checks: {
       type: 'array',
@@ -148,12 +149,13 @@ if (confirmed.length === 0) {
 phase('Fix')
 const checkLines = checks.length ? checks.map((c) => `- ${c}`).join('\n') : '- (none given: run the tests for the files you change, one suite at a time)'
 const fix = await agent(
-  `${skill('fix')}\n\nFix these confirmed review findings in the current directory, with the smallest change each, and add or adjust a test for each where practical. Do not commit or push. Follow the build file's rules for where and how to run checks.\n\nFindings:\n${confirmed.map((f, i) => describe(f, i + 1)).join('\n')}\n\nThen run these checks and report each result with the last lines of its output, using the exact command text below. Read each command's exit status; do not pipe output through tail or head without set -o pipefail:\n${checkLines}`,
+  `${skill('fix')}\n\nFix these confirmed review findings in the current directory, with the smallest change each, and add or adjust a test for each where practical. In \`fixed\`, list the number of each finding you fixed; put any you could not fix in \`notFixed\` with the reason. Do not commit or push. Follow the build file's rules for where and how to run checks.\n\nFindings:\n${confirmed.map((f, i) => describe(f, i + 1)).join('\n')}\n\nThen run these checks and report each result with the last lines of its output, using the exact command text below. Read each command's exit status; do not pipe output through tail or head without set -o pipefail:\n${checkLines}`,
   { label: 'fix', phase: 'Fix', schema: FIXED },
 )
 // Every requested check needs a passing result; with none requested, at least one check must have run and passed.
 const ran = fix ? fix.checks : []
 const checksPass = ran.length > 0 && ran.every((c) => c.passed) &&
   checks.every((cmd) => ran.some((c) => c.command.trim() === cmd.trim() && c.passed))
-const clean = !incomplete && Boolean(fix) && fix.notFixed.length === 0 && checksPass
+const allFixed = Boolean(fix) && confirmed.every((_, i) => fix.fixed.includes(i + 1)) && fix.notFixed.length === 0
+const clean = !incomplete && allFixed && checksPass
 return { verdict: clean ? 'CLEAN' : 'FINDINGS', failedLenses, confirmed, refuted, unverified, fix }
