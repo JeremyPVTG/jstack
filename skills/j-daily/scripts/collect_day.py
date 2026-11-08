@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Collect one day's work as JSON for the j-daily skill. Every source is read only.
+"""Collect one day's work as JSON for the j-daily skill. It changes no files or branches;
+the only write is a `git fetch` of the vault's remote-tracking refs.
 
 Sources:
   vault    entries appended to the research vault's log.md, placed by commit time
@@ -74,16 +75,18 @@ def clip(text):
 def vault_entries(vault, start, end):
     """Log lines added by commits inside the window. Commit time is exact; the bracketed date
     in a log line is UTC in older entries and the owner's zone in newer ones."""
-    if not vault or not Path(vault).is_dir():
+    vault = Path(vault).expanduser() if vault else None
+    if not vault or not vault.is_dir():
         return {'error': 'research_vault is not set or not a folder'}
-    try:
+    refs = ['HEAD']  # local commits not yet pushed
+    try:  # vault writes often land on the remote first; fetch updates only remote-tracking refs
         run(['git', 'fetch', '-q', 'origin'], cwd=vault)
-        ref = 'origin/HEAD'
-        run(['git', 'rev-parse', '--verify', '-q', ref], cwd=vault)
+        run(['git', 'rev-parse', '--verify', '-q', 'origin/HEAD'], cwd=vault)
+        refs.append('origin/HEAD')
     except subprocess.CalledProcessError:
-        ref = 'HEAD'
+        pass
     since = (start - timedelta(days=1)).isoformat()
-    out = run(['git', 'log', ref, '--reverse', '-p', f'--since={since}',
+    out = run(['git', 'log', *refs, '--reverse', '-p', f'--since={since}',
                f'--format={COMMIT_MARK}%cI', '--', 'log.md'], cwd=vault)
     entries, moment = [], None
     for line in out.splitlines():
