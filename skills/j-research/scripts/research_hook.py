@@ -11,11 +11,18 @@ Chosen over a Haiku call after a comparison on 71 labelled prompts (jstack-evals
 experiments/2026-11-08-trigger-classifier): Jev fired on 40/40 research prompts
 and 0/31 others, at a median of about 165 ms; Haiku 39/40 and 0/31 at about 710 ms.
 
+Every classified prompt is appended to a local JSON Lines log (scores, decision, first 300
+characters of the prompt) so false fires can be labelled before anyone tunes the questions:
+~/.local/state/jstack/research-hook.jsonl, or JSTACK_HOOK_LOG; set it to "off" to disable.
+Summarise with `research_hook.py --report`.
+
 Key: TYPESAFE_API_KEY (or EVAL_TYPESAFE_API_KEY under `claude plugin eval`) from the environment, else the macOS keychain item
 `jstack-typesafe` (security add-generic-password -s jstack-typesafe -a "$USER" -w).
 """
 import json
 import os
+import time
+from pathlib import Path
 import subprocess
 import sys
 import urllib.request
@@ -78,7 +85,43 @@ def judge(message: str, key: str) -> dict:
     return {name: result["answers"][name]["noul"] for name in QUESTIONS}
 
 
+def log_path() -> Path | None:
+    setting = os.environ.get("JSTACK_HOOK_LOG", "")
+    if setting == "off":
+        return None
+    return Path(setting) if setting else Path.home() / ".local/state/jstack/research-hook.jsonl"
+
+
+def record(prompt: str, scores: dict, fire: bool) -> None:
+    """Append one line for later labelling; a logging failure never affects the hook."""
+    path = log_path()
+    if not path:
+        return
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        entry = {"at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "fire": fire, "scores": scores, "prompt": prompt[:300], "label": None}
+        with path.open("a") as handle:
+            handle.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
+
+
+def report(path: Path) -> int:
+    """Print fire rate and, for labelled lines (label true = needed research), false fires and misses."""
+    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
+    labelled = [r for r in rows if r.get("label") is not None]
+    print(json.dumps({
+        "prompts": len(rows), "fired": sum(r["fire"] for r in rows), "labelled": len(labelled),
+        "false_fires": sum(r["fire"] and not r["label"] for r in labelled),
+        "misses": sum(r["label"] and not r["fire"] for r in labelled),
+    }))
+    return 0
+
+
 def main() -> int:
+    if "--report" in sys.argv:
+        path = log_path()
+        return report(path) if path else 0
     try:
         prompt = str(json.load(sys.stdin).get("prompt", "")).strip()
     except (ValueError, AttributeError):
@@ -92,10 +135,12 @@ def main() -> int:
         print("research hook: no TYPESAFE_API_KEY; skipped", file=sys.stderr)
         return 0
     try:
-        fire = decide(judge(prompt, key))
+        scores = judge(prompt, key)
+        fire = decide(scores)
     except Exception as error:  # never block or alter a prompt because the classifier failed
         print(f"research hook: classifier failed ({type(error).__name__}); skipped", file=sys.stderr)
         return 0
+    record(prompt, scores, fire)
     if fire:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": REMINDER}}))
     return 0
