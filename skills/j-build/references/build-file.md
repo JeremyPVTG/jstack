@@ -1,6 +1,8 @@
 # What a repository's build file holds
 
-j-build reads one file in the repository before it changes anything, usually `docs/agents/build.md`, linked from AGENTS.md. It holds what is true for that repository, so the skill can stay generic. Keep it short and factual: a rule that cannot bend belongs in a hook or a CI check, not in prose.
+j-build reads one file in the repository before it changes anything, usually `docs/agents/build.md`, linked from AGENTS.md. It holds what is true for that repository, so the skill can stay generic. Keep it short and factual: a rule that cannot bend belongs in a hook or a CI check, not in prose. Point at the config that holds a list (risk tiers, governed paths, allowlists) instead of copying it; copies go stale.
+
+Before choosing the file's location, check the repo's rules on where docs may live (path allowlists, hygiene checks): adding the file can itself trip a gate. Use an allowed path when one fits.
 
 ## Sections
 
