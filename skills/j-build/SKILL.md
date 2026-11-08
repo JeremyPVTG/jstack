@@ -9,7 +9,7 @@ One task, in stages, each with an exit check. Stop at the first point that needs
 
 Every run, at every size:
 
-1. Read the repository's build file first: the file its AGENTS.md (or CLAUDE.md) names for building, often `docs/agents/build.md`. Its branch base, checks, approval rules and stops override this skill's defaults. If there is none, use AGENTS.md and say so in the report. [What a build file holds](references/build-file.md).
+1. Read the repository's build file first: the file its AGENTS.md (or CLAUDE.md) names for building, often `docs/agents/build.md`. Its branch base, checks, approval rules and stops override this skill's defaults. If there is none (including when the task is to write the first one), use AGENTS.md in its place everywhere this skill says build file, and say so in the report. [What a build file holds](references/build-file.md).
 2. Claim a check passes only from a run in this turn after your last edit, and read its exit status. Do not pipe test output through `tail` or `head` without `set -o pipefail`.
 3. End every report with what the owner must do next, as a numbered list, or "Nothing needed from you".
 
@@ -18,6 +18,8 @@ Every run, at every size:
 - **Small:** one clear change whose cause is already known, no money, data, auth or gated files. Build, review, verify, report.
 - **Standard:** everything else. All stages.
 - **Risky:** touches money, user data, auth, secrets, migrations, or files the build file marks as gated. All stages; ask before building.
+
+If the repo predicts a risk or approval tier from the diff, run that prediction as soon as a diff exists and size again from the result: a one-line config change can make a docs task risky.
 
 If the task grows mid-way (a second cause, a gated file, a new dependency), stop, say so, and step up a size. Visual or creative iteration (layouts, renders, copy tone) is not this skill's job: say so and work with the owner directly.
 
@@ -53,7 +55,7 @@ Exit: it compiles, lints, and its own tests pass.
 
 ## 4. Review
 
-Three fresh reviewers, each told only the diff and the brief, never your conclusions: correctness, the repo's rules, tests. Each finding is refuted independently; findings are merged by root cause; only confirmed ones are fixed; the result ends with a verdict, CLEAN or FINDINGS. Use j-review's assess mode for each lens. [How](references/review.md).
+Three fresh reviewers, each told only the diff and the brief, never your conclusions: correctness, the repo's rules, tests. Each finding is refuted independently; findings are merged by root cause; only confirmed ones are fixed; the result ends with a verdict, CLEAN or FINDINGS. Each lens is j-review in assess mode; each refutation is j-review in confirm mode. For Small or docs-only work you may check the findings yourself instead of with separate refuters; say so in the report. [How](references/review.md).
 
 Exit: verdict CLEAN, or every confirmed high and medium finding fixed and the checks re-run.
 
