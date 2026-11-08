@@ -14,7 +14,8 @@
   "vars": {
     "VAULT_REPO": "JeremyPVTG/research-vault",
     "SKILLS_REPO": "JeremyPVTG/jstack",
-    "ALLOWED_GITHUB_ID": "222706595"
+    "ALLOWED_GITHUB_ID": "222706595",
+    "VAULT_TZ": "America/Los_Angeles"
   }
   // Secrets: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET (GitHub OAuth App), VAULT_GITHUB_TOKEN (fine-grained token: research-vault contents read/write)
 }

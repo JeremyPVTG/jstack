@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { localDate } from "../src/tools";
 import { captureText, capturePath, lint, listField, logLine, search, skills, untar, wikiProblems, writablePath, type Files } from "../src/vault";
 
 const page = (title: string, body = "", type = "topic", reviewed = "2026-11-01", volatility = "medium") =>
@@ -144,5 +145,13 @@ describe("skills", () => {
   it("lists skills with frontmatter and files", () => {
     const files = { "skills/j-research/SKILL.md": "---\nname: j-research\ndescription: Research things.\n---\n", "skills/j-research/references/sources.md": "x", "README.md": "x" };
     expect(skills(files)).toEqual([{ name: "j-research", description: "Research things.", files: ["SKILL.md", "references/sources.md"] }]);
+  });
+});
+
+describe("localDate", () => {
+  it("uses the owner's time zone, not UTC", () => {
+    const evening = new Date("2026-11-08T04:30:00Z"); // 20:30 on Nov 7 in Los Angeles
+    expect(localDate("America/Los_Angeles", evening)).toBe("2026-11-07");
+    expect(localDate("UTC", evening)).toBe("2026-11-08");
   });
 });
