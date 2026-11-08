@@ -20,6 +20,10 @@ Narrowed descriptions to distinguish investigation from reconciliation and code 
 
 The previous committed version remains recoverable from Git. Existing installations were not migrated. The evaluation repository preserves its previous subject pin as the comparison baseline and records the new candidate separately.
 
+## 2026-11-08 rebuild of j-review and j-deliver
+
+j-review and j-deliver were rebuilt to replace the owner's personal pr-* skills after a usage analysis of 157 sessions (decision recorded outside this repo). Each now has one reference file again (comment triage; CI classification) and j-deliver works an open PR through conflicts, threads and CI in push waves, which reverses "no new orchestration" for that skill. The boundary above holds: j-review decides (verdict, confirmation, triage decisions, code fixes); j-deliver changes external PR state (push, replies, thread resolution, readiness). Authorization keeps its stated scope; a fresh approval per head applies only where the build file requires it. None of this is measured yet.
+
 ## Remaining proof
 
 Run matched baseline/candidate trials on the existing development cases in T3. Include a no-added-skill condition: if T3 and the model already handle a behavior reliably, repeating it in jstack may add no value. Track unnecessary loading, questions, artifacts, tool calls, and cost alongside task success.
