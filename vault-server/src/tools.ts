@@ -9,6 +9,7 @@ export type VaultEnv = {
   SKILLS_REPO: string;
   VAULT_GITHUB_TOKEN: string;
   VAULT_SEARCH?: VaultIndex;
+  VAULT_TZ?: string;
 };
 
 export const INSTRUCTIONS = [
@@ -20,7 +21,8 @@ export const INSTRUCTIONS = [
   "Skills: if your host has not installed jstack, use `list_skills` and `read_skill` to load j-research, j-scope and the others when a task matches their description.",
 ].join("\n");
 
-const today = () => new Date().toISOString().slice(0, 10);
+/** Today's date (YYYY-MM-DD) in the owner's time zone, so captures and log lines match the date agents see locally. */
+export const localDate = (timeZone = "UTC", at = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
 
 type Tool = { name: string; description: string; inputSchema: Record<string, unknown>; annotations?: Record<string, boolean> };
 const str = (description: string) => ({ type: "string", description });
@@ -98,7 +100,7 @@ export function vaultServer(env: VaultEnv): Server {
         return `Saved ${path} (sha ${result.sha}). ${path.startsWith("wiki/") ? "Make sure index.md lists it, then run lint." : ""}`;
       }
       case "capture_source": {
-        const day = today();
+        const day = localDate(env.VAULT_TZ);
         const capture = args as Capture;
         const path = capturePath(capture, day);
         const text = captureText(capture, day);
@@ -107,7 +109,7 @@ export function vaultServer(env: VaultEnv): Server {
         return `Captured ${path}. Link it from wiki pages as [[${path.slice(0, -3)}]].`;
       }
       case "append_log": {
-        const line = logLine(String(args.kind), String(args.summary ?? ""), Array.isArray(args.pages) ? args.pages.map(String) : [], today(), args.spend ? String(args.spend) : undefined);
+        const line = logLine(String(args.kind), String(args.summary ?? ""), Array.isArray(args.pages) ? args.pages.map(String) : [], localDate(env.VAULT_TZ), args.spend ? String(args.spend) : undefined);
         for (let attempt = 0; attempt < 3; attempt++) {
           const log = await readFile(vault, "log.md");
           const base = log?.text ?? "# Log\n\nAppend-only. Newest last.\n";
