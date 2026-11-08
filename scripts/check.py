@@ -19,6 +19,8 @@ def main():
         assert match, 'Invalid frontmatter: ' + str(path)
         name, description = match.groups()
         assert name == path.parent.name and len(description) <= 1024, name
+        # Claude Code substitutes $0, $1, ... and $ARGUMENTS in a skill body with the invocation's arguments.
+        assert not re.search(r'\$(\d|ARGUMENTS)', text), f'{name}: write amounts without $N (Claude Code treats $N as an argument)'
         assert name not in entries, 'Duplicate name: ' + name
         entries[name] = (description, path.relative_to(ROOT).as_posix())
     for pack, names in json.loads((ROOT / 'packs.json').read_text()).items():
