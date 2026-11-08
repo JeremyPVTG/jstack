@@ -100,15 +100,17 @@ class CommitsTest(unittest.TestCase):
         git(repo, 'add', 'f')
         git(repo, 'commit', '-q', '-m', subject, when=when, email=email)
 
-    def test_finds_noreply_commits_and_skips_repos_that_had_a_pr(self):
+    def test_keeps_direct_noreply_commits_and_leaves_pr_work_out(self):
         noreply = '123+me@users.noreply.github.com'
         tools = self.repo('tools', 'me/tools')
         self.commit(tools, 'Yesterday', noreply, when='2026-11-06T12:00:00-08:00')
         self.commit(tools, 'Pushed straight to main', noreply)
         self.commit(tools, 'Someone else', 'other@example.com')
-        app = self.repo('app', 'org/app')
-        self.commit(app, 'Covered by a PR', noreply)
-        repos = cd.commits([str(self.root)], START, END, {'org/app'}, [noreply])['repos']
+        self.commit(tools, 'Add the thing (#12)', noreply)
+        git(tools, 'switch', '-q', '-c', 'feature')
+        self.commit(tools, 'Work in progress on a PR branch', noreply)
+        git(tools, 'switch', '-q', 'main')
+        repos = cd.commits([str(self.root)], START, END, [noreply])['repos']
         self.assertEqual(repos, [{'repo': 'me/tools', 'count': 1, 'subjects': ['Pushed straight to main']}])
 
 
