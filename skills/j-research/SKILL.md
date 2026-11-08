@@ -1,6 +1,6 @@
 ---
 name: j-research
-description: Use this skill before answering any question that depends on facts that can change: versions, prices, limits, best practice, what tools or services exist, whether something is ready for production or safe to rely on, or how you would build, set up or choose something for the user. It checks the research vault first, searches current sources, and saves what it learns. Training knowledge is not enough for these questions, even when they sound like design advice. Not for code edits, writing, or explaining stable concepts.
+description: Use this skill before answering any question that depends on facts that can change: versions, prices, limits, best practice, what tools or services exist, whether something is ready for production, whether a vendor, blog or forum claim can be relied on, or how you would build, set up or choose something for the user. It checks the research vault first, searches current sources, and saves what it learns. Training knowledge is not enough for these questions, even when they sound like design advice. Not for code edits, writing, or explaining stable concepts.
 ---
 
 # Research
