@@ -5,6 +5,7 @@
     "j-evidence"
   ],
   "engineering": [
+    "j-build",
     "j-review",
     "j-deliver"
   ],
