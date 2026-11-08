@@ -35,6 +35,10 @@ reviewed:        # YYYY-MM-DD, when the claims were last checked
 volatility:      # high (30 days) | medium (90) | low (365)
 sources:         # one quoted wikilink per line
   - "[[raw/YYYY-MM/YYYY-MM-DD short-slug]]"
+supersedes:      # optional: pages this one replaces
+  - "[[Older page]]"
+contradicts:     # optional: pages whose claims this one disputes
+  - "[[Other page]]"
 ```
 
 - **topic**: a question researched, with the current answer first.
@@ -46,6 +50,7 @@ Rules:
 
 - Every non-obvious claim links to a raw source, with the version or date it applies to.
 - When sources disagree, keep both under `## Contradictions` with their dates. Do not delete the older claim; mark it superseded.
+- When a page replaces another, list it under `supersedes` and add a link back from the old page to the new one; when a page disputes another, list it under `contradicts` and link back under the other page's `## Contradictions`. Lint checks both.
 - Link pages with `[[wikilinks]]`. Prefer updating an existing page over creating a near-duplicate.
 - Mark your own inferences as inference.
 - No emoji.
@@ -58,10 +63,10 @@ Rules:
 
 ## Log format
 
-One line per event, greppable:
+One line per event, greppable. Add `| spend: ~$X` when the run paid for searches, scraping or models:
 
 ```
-## [YYYY-MM-DD] research | Question or topic | pages: [[A]], [[B]]
+## [YYYY-MM-DD] research | Question or topic | pages: [[A]], [[B]] | spend: ~$0.10
 ## [YYYY-MM-DD] ingest | Source title | pages: [[A]]
 ## [YYYY-MM-DD] lint | 3 stale, 1 contradiction
 ```

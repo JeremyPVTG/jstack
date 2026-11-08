@@ -2,8 +2,10 @@
 """Check a j-research vault for the problems a model misses as the vault grows.
 
 Errors (exit 1): missing or invalid frontmatter, broken wikilinks, wiki pages
-missing from index.md, index entries pointing nowhere.
-Warnings (exit 0): pages past their volatility window, orphan wiki pages.
+missing from index.md, index entries pointing nowhere, superseded pages that
+do not link their successor.
+Warnings (exit 0): pages past their volatility window, orphan wiki pages,
+contradictions the disputed page does not acknowledge.
 
 Usage: vault_lint.py VAULT [--today YYYY-MM-DD]
 """
@@ -34,6 +36,25 @@ def frontmatter(text):
     return fields
 
 
+def list_field(text, key):
+    """Wikilink targets listed under a frontmatter key, one quoted link per line."""
+    if not text.startswith('---\n'):
+        return []
+    lines = text[4:text.find('\n---', 4)].splitlines()
+    out, active = [], False
+    for line in lines:
+        if line.startswith(key + ':'):
+            active = True
+            continue
+        if active:
+            if not re.match(r'\s+-', line):
+                break
+            found = LINK.search(line)
+            if found:
+                out.append(found.group(1).strip())
+    return out
+
+
 def parse_date(value):
     try:
         return date.fromisoformat(value.strip('"\''))
@@ -54,7 +75,7 @@ def lint(vault, today):
         target = target.strip().removesuffix('.md').lower()
         return by_path.get(target) or by_name.get(target.rsplit('/', 1)[-1] if '/' not in target else '')
 
-    inbound = {}
+    inbound, outbound = {}, {}
     for path in notes:
         rel = path.relative_to(vault).with_suffix('').as_posix()
         text = path.read_text(errors='replace')
@@ -64,6 +85,7 @@ def lint(vault, today):
                 errors.append(f'{rel}: broken link [[{target}]]')
             elif found != rel:
                 inbound.setdefault(found, set()).add(rel)
+                outbound.setdefault(rel, set()).add(found)
         if rel.startswith('wiki/'):
             fields = frontmatter(text)
             missing = [f for f in WIKI_FIELDS if not fields or f not in fields]
@@ -84,6 +106,22 @@ def lint(vault, today):
             missing = [f for f in RAW_FIELDS if not fields or not fields.get(f)]
             if missing:
                 errors.append(f'{rel}: missing frontmatter {", ".join(missing)}')
+
+    for path in notes:
+        rel = path.relative_to(vault).with_suffix('').as_posix()
+        if not rel.startswith('wiki/'):
+            continue
+        text = path.read_text(errors='replace')
+        for key, severe in (('supersedes', True), ('contradicts', False)):
+            for target in list_field(text, key):
+                other = resolve(target)
+                if not other or other == rel or rel in outbound.get(other, set()):
+                    continue
+                name = rel.rsplit('/', 1)[-1]
+                if severe:
+                    errors.append(f'{other}: superseded by [[{name}]]; link to it')
+                else:
+                    warnings.append(f'{other}: contradicted by [[{name}]]; link to it under Contradictions')
 
     indexed = {target for target, sources in inbound.items() if 'index' in sources}
     for rel in sorted(r for r in by_path.values() if r.startswith('wiki/')):

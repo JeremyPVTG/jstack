@@ -19,7 +19,7 @@ Use the vault MCP server if connected (call its `guide` once), else the local va
 
 ## 2. Start from the vault
 
-Read `index.md`, then the relevant pages. A page is reusable inside its volatility window (high: 30 days, medium: 90, low: 365): cite it. Outside, re-verify only the claims the decision depends on, then update the page. Say which parts came from the vault.
+Read `index.md`, then the relevant pages. A page is reusable inside its volatility window (high: 30 days, medium: 90, low: 365): cite it. Outside, re-verify only the claims the decision depends on, then update the page. A page superseded by another is history: read its successor. Say which parts came from the vault.
 
 ## 3. Landscape: what already exists
 
@@ -33,6 +33,8 @@ Write an honest brief: each option with what it gives, what it costs, its failur
 
 Record the version and date of every decisive claim; freshness checks depend on it. Social and forum posts are leads: confirm behaviour against primary sources. Keep what sources say (cited), what you infer, and what is still unknown separate.
 
+When sources conflict, are thin, or are only vendor claims, and a small experiment would settle it (a test call, a trial run, a benchmark on your own data), run it within budget and save its setup and results to `raw/` as a dataset. A measured result outranks any number of posts about it.
+
 ## 5. Implementation research (Build mode, after scope)
 
 Work in rounds, inside the scope only: official docs and the code of a good reference implementation; then gotchas from GitHub issues, Stack Overflow (check answer dates against the version), practitioner threads via `last30days` and talk transcripts; then one hop along the best sources' own links. After each round, list the open questions that would change the build and search those next. Stop when a round changes nothing or the budget is reached.
@@ -45,8 +47,10 @@ Follow the vault's `AGENTS.md`: save each decisive source to `raw/` (never edite
 
 ## Report
 
-Lead with the answer and link the vault page; the detail lives there. End with one coverage line: each lane searched and what it gave, including empty or missing ones (for example "social: last30days not installed").
+Lead with the answer and link the vault page; the detail lives there. End with one coverage line: each lane searched, the providers used and what each gave, including empty or missing ones (for example "social: last30days not installed").
+
+When the research feeds a build, buy, or scope decision and the vault has a research council brief, offer that review before the decision is acted on.
 
 ## Cost
 
-Free sources first. State the expected cost before paid calls; stay under about $2 per run unless the user sets a budget. Tools and pricing: [sources](references/sources.md).
+Free sources first. State the expected cost before paid calls; stay under about $2 per run unless the user sets a budget, and record the approximate paid spend in the log line. Tools and pricing: [sources](references/sources.md).
