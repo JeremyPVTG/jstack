@@ -34,7 +34,8 @@ A scope decision:
 - **In:** what gets built now, and whether each part is adopted or built.
 - **Out:** what waits, each with the signal that would bring it back.
 - **Risks accepted.**
+- **Against the recommendation:** each choice the user made against your recommendation, so later results can be judged against it.
 
-If a research vault is in use, record it as a `decision` page there. Then hand it back to j-research for implementation research or to the build.
+Use [the decision template](assets/decision-template.md). If a research vault is in use, record it as a `decision` page there. Then hand it back to j-research for implementation research or to the build.
 
 Grilling approach adapted from Matt Pocock's [grilling skill](https://github.com/mattpocock/skills); status quo and position-taking from gstack's [office-hours](https://github.com/garrytan/gstack/tree/main/office-hours).
