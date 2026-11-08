@@ -9,7 +9,7 @@ max_deletions="${2:-5}"
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
 cd "$vault" || { log "cannot enter $vault"; exit 1; }
-git rev-parse --git-dir >/dev/null 2>&1 || { log "not a git work tree"; exit 1; }
+why=$(git rev-parse --git-dir 2>&1 >/dev/null) || { log "not a git work tree: ${why:-unknown}"; exit 1; }
 
 if [ -n "$(git status --porcelain --untracked-files=no | grep '^.U\|^U' || true)" ] || [ -d "$(git rev-parse --git-dir)/rebase-merge" ] || [ -d "$(git rev-parse --git-dir)/rebase-apply" ]; then
   log "unresolved conflict or rebase in progress; resolve it by hand"; exit 1
