@@ -15,7 +15,7 @@ Usage: collect_day.py [--date YYYY-MM-DD] [--tz ZONE] [--out FILE]
   --tz    IANA time zone that bounds the day (default: this machine's zone)
 
 Config: ~/.config/jstack/config.json (or $JSTACK_CONFIG)
-  research_vault     local clone of the research vault, shared with j-research
+  research_vault     local clone of the research vault, shared with j-research ($J_RESEARCH_VAULT wins)
   daily.repo_roots   folders whose child git repos are scanned for commits (default: home)
   daily.author_emails  extra commit emails that are yours (the global git email and your
                      GitHub noreply address are always included)
@@ -78,15 +78,13 @@ def vault_entries(vault, start, end):
     vault = Path(vault).expanduser() if vault else None
     if not vault or not vault.is_dir():
         return {'error': 'research_vault is not set or not a folder'}
-    refs = ['HEAD']  # local commits not yet pushed
     try:  # vault writes often land on the remote first; fetch updates only remote-tracking refs
         run(['git', 'fetch', '-q', 'origin'], cwd=vault)
-        run(['git', 'rev-parse', '--verify', '-q', 'origin/HEAD'], cwd=vault)
-        refs.append('origin/HEAD')
     except subprocess.CalledProcessError:
         pass
     since = (start - timedelta(days=1)).isoformat()
-    out = run(['git', 'log', *refs, '--reverse', '-p', f'--since={since}',
+    # HEAD covers local commits not yet pushed; --remotes=origin covers fetched ones without origin/HEAD.
+    out = run(['git', 'log', 'HEAD', '--remotes=origin', '--reverse', '-p', f'--since={since}',
                f'--format={COMMIT_MARK}%cI', '--', 'log.md'], cwd=vault)
     entries, moment = [], None
     for line in out.splitlines():
@@ -245,7 +243,8 @@ def collect(day, tz, cfg):
     start, end = day_window(day, tz)
     daily = cfg.get('daily', {})
     result = {'day': day.isoformat(), 'timezone': str(tz), 'start': start.isoformat(), 'end': end.isoformat()}
-    result['vault'] = guarded(lambda: vault_entries(cfg.get('research_vault'), start, end))
+    vault = os.environ.get('J_RESEARCH_VAULT') or cfg.get('research_vault')  # same order as j-research
+    result['vault'] = guarded(lambda: vault_entries(vault, start, end))
     result['prs'] = guarded(lambda: pull_requests(start, end))
     pr_repos = {pr['repo'] for key in ('opened', 'merged') for pr in result['prs'].get(key, [])}
     roots = daily.get('repo_roots') or [str(Path.home())]

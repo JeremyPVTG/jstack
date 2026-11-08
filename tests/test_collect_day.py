@@ -60,6 +60,26 @@ class VaultTest(unittest.TestCase):
         self.assertEqual(entries[0]['pages'], ['B', 'C'])
         self.assertEqual(entries[0]['spend'], '~$1')
 
+    def test_reads_entries_that_exist_only_on_the_remote_without_origin_head(self):
+        remote = Path(tempfile.mkdtemp())
+        git(remote, 'init', '-q', '--bare', '-b', 'main')
+        writer = new_repo()
+        (writer / 'log.md').write_text('# Log\n')
+        git(writer, 'add', 'log.md')
+        git(writer, 'commit', '-q', '-m', 'start', when='2026-11-06T09:00:00-08:00')
+        git(writer, 'remote', 'add', 'origin', str(remote))
+        git(writer, 'push', '-q', 'origin', 'main')
+        vault = Path(tempfile.mkdtemp())
+        git(vault, 'init', '-q', '-b', 'main')
+        git(vault, 'remote', 'add', 'origin', str(remote))
+        git(vault, 'config', 'remote.origin.followRemoteHEAD', 'never')  # git < 2.48 never sets origin/HEAD
+        git(vault, 'pull', '-q', 'origin', 'main')
+        (writer / 'log.md').write_text('# Log\n## [2026-11-07] research | Written by the server\n')
+        git(writer, 'commit', '-q', '-am', 'log', when='2026-11-07T10:00:00-08:00')
+        git(writer, 'push', '-q', 'origin', 'main')
+        entries = cd.vault_entries(str(vault), START, END)['entries']
+        self.assertEqual([e['summary'] for e in entries], ['Written by the server'])
+
     def test_a_missing_vault_is_an_error_not_a_crash(self):
         self.assertIn('error', cd.vault_entries(None, START, END))
 
