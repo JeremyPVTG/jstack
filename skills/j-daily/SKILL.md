@@ -43,7 +43,7 @@ Only `blog_repo` is needed to open a PR; without it, do a dry run. The deny list
 5. **Check.** Run `python3 scripts/leak_check.py <draft> --day <tmp>/day.json`.
 6. **Open the PR** in `blog_repo`: branch `blog/YYYY-MM-DD` from the latest default branch, one commit with the draft, committed as the owner's normal git identity, then `gh pr create --draft`. Title `Daily log: YYYY-MM-DD`. Body: the questions, the thread digest, the leak check output, and which sources had gaps.
 
-Without `blog_repo`, or when a PR was not asked for, stop after step 5 and show the draft, the questions and the leak check.
+Without `blog_repo`, or when the "Open a PR only" rule does not allow one, stop at the step that rule names and show what you have (the digest and questions, or the draft and leak check).
 
 ## Essays
 
