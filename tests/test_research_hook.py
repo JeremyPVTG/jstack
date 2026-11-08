@@ -1,7 +1,9 @@
 import importlib.util
 import io
 import json
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -22,11 +24,16 @@ class Decide(unittest.TestCase):
     def test_no_signal_does_not_fire(self):
         self.assertFalse(hook.decide(answers(changing=0.2, contained=0.1)))
 
-def run(prompt, judged=None, error=None, key="k"):
+LOG_DIR = tempfile.TemporaryDirectory()
+LOG = Path(LOG_DIR.name) / "hook.jsonl"
+
+
+def run(prompt, judged=None, error=None, key="k", log=LOG):
     out, err = io.StringIO(), io.StringIO()
     judge = mock.Mock(side_effect=error) if error else mock.Mock(return_value=judged)
     with mock.patch.object(hook, "judge", judge), mock.patch.object(hook, "api_key", return_value=key), \
-         mock.patch.object(sys, "stdin", io.StringIO(json.dumps({"prompt": prompt}))), mock.patch.object(sys, "stdout", out), mock.patch.object(sys, "stderr", err):
+         mock.patch.object(sys, "stdin", io.StringIO(json.dumps({"prompt": prompt}))), mock.patch.object(sys, "stdout", out), mock.patch.object(sys, "stderr", err), \
+         mock.patch.dict(os.environ, {"JSTACK_HOOK_LOG": str(log)}):
         code = hook.main()
     return code, out.getvalue(), err.getvalue(), judge
 
@@ -53,6 +60,39 @@ class Main(unittest.TestCase):
             self.assertEqual(out, ""); judge.assert_not_called()
         _, out, err, judge = run("Which Postgres host is cheapest now?", answers(changing=0.9), key=None)
         self.assertEqual(out, ""); self.assertIn("no TYPESAFE_API_KEY", err); judge.assert_not_called()
+
+class Log(unittest.TestCase):
+    def setUp(self):
+        LOG.unlink(missing_ok=True)
+
+    def test_records_scores_decision_and_prompt(self):
+        run("How would you build a booking page?", answers(build=0.95))
+        run("Rename getUser to fetchUser everywhere", answers(contained=0.9))
+        rows = [json.loads(line) for line in LOG.read_text().splitlines()]
+        self.assertEqual([r["fire"] for r in rows], [True, False])
+        self.assertEqual(rows[0]["scores"]["build_or_choose"], 0.95)
+        self.assertIsNone(rows[0]["label"])
+
+    def test_skipped_and_failed_prompts_are_not_recorded(self):
+        run("/review", answers(build=0.9))
+        run("Is Bun stable enough for cron jobs?", error=TimeoutError())
+        self.assertFalse(LOG.exists())
+
+    def test_off_disables_and_unwritable_path_is_harmless(self):
+        _, out, _, _ = run("How would you build a booking page?", answers(build=0.95), log="off")
+        self.assertIn("j-research", out)
+        self.assertFalse(LOG.exists())
+        _, out, _, _ = run("How would you build a booking page?", answers(build=0.95), log="/dev/null/nope.jsonl")
+        self.assertIn("j-research", out)
+
+    def test_report_counts_false_fires_and_misses(self):
+        rows = [{"fire": True, "label": False}, {"fire": False, "label": True}, {"fire": True, "label": True}, {"fire": True, "label": None}]
+        LOG.write_text("".join(json.dumps(r) + "\n" for r in rows))
+        out = io.StringIO()
+        with mock.patch.object(sys, "stdout", out):
+            hook.report(LOG)
+        self.assertEqual(json.loads(out.getvalue()), {"prompts": 4, "fired": 3, "labelled": 3, "false_fires": 1, "misses": 1})
+
 
 if __name__ == "__main__":
     unittest.main()
