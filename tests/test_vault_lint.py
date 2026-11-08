@@ -95,3 +95,17 @@ class VaultLintTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ScopePages(unittest.TestCase):
+    def test_scope_problems(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('vault_lint_scope', Path(__file__).resolve().parents[1] / 'skills/j-research/scripts/vault_lint.py')
+        lint_module = importlib.util.module_from_spec(spec); spec.loader.exec_module(lint_module)
+        full = "# X scope\n\n## Goal and proof\nG\n\n## In\n- A\n\n## Out\n- B: waits. Comes back if users ask.\n\n## Risks accepted\n- R\n"
+        self.assertEqual(lint_module.scope_problems(full), [])
+        partial = "# X scope\n\n## Goal and proof\nG\n\n## Out\n- B: waits.\n"
+        problems = lint_module.scope_problems(partial)
+        self.assertTrue(any('"In"' in p for p in problems))
+        self.assertTrue(any('"Risks accepted"' in p for p in problems))
+        self.assertTrue(any('no signal' in p for p in problems))

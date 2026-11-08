@@ -5,7 +5,8 @@ Errors (exit 1): missing or invalid frontmatter, broken wikilinks, wiki pages
 missing from index.md, index entries pointing nowhere, superseded pages that
 do not link their successor.
 Warnings (exit 0): pages past their volatility window, orphan wiki pages,
-contradictions the disputed page does not acknowledge.
+contradictions the disputed page does not acknowledge, scope decision pages missing
+sections of j-scope's template.
 
 Usage: vault_lint.py VAULT [--today YYYY-MM-DD]
 """
@@ -62,6 +63,19 @@ def parse_date(value):
         return None
 
 
+SCOPE_SECTIONS = ('Goal and proof', 'In', 'Out', 'Risks accepted')
+
+
+def scope_problems(text):
+    """Gaps in a scope decision page against j-scope's template (warnings: older pages predate it)."""
+    headings = re.findall(r'^## (.+?)\s*$', text, re.M)
+    problems = [f'scope page missing section "{name}" (j-scope template)' for name in SCOPE_SECTIONS if name not in headings]
+    out = re.search(r'^## Out\s*$(.*?)(?=^## |\Z)', text, re.M | re.S)
+    if out and re.search(r'^\s*- ', out.group(1), re.M) and 'comes back' not in out.group(1).lower():
+        problems.append('scope page Out items name no signal that would bring them back ("Comes back if ...")')
+    return problems
+
+
 def lint(vault, today):
     errors, warnings = [], []
     notes = [p for p in vault.rglob('*.md') if not any(part.startswith('.') for part in p.relative_to(vault).parts)]
@@ -101,6 +115,8 @@ def lint(vault, today):
                 errors.append(f'{rel}: volatility must be high, medium, or low')
             elif (today - reviewed).days > WINDOWS[fields['volatility']]:
                 warnings.append(f'{rel}: stale, reviewed {reviewed} ({fields["volatility"]} volatility)')
+            if fields['type'] == 'decision' and ' scope' in rel.lower():
+                warnings.extend(f'{rel}: {problem}' for problem in scope_problems(text))
         elif rel.startswith('raw/'):
             fields = frontmatter(text)
             missing = [f for f in RAW_FIELDS if not fields or not fields.get(f)]
