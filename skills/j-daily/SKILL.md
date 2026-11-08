@@ -10,6 +10,7 @@ The owner wants a short daily log of what they learned, written by them, from a 
 ## Rules
 
 - Never write an opinion, lesson or conclusion as the owner. "What I did" is facts; "What I learned" is the owner's questions to answer.
+- Open a PR only when the owner asks for a draft post or PR, or a scheduled run asks for the daily draft. "What did I do?" and planning requests stop after step 3; a request to see a draft stops after step 5.
 - Never merge, publish, or push to the blog's default branch. Merging the PR is the owner's approval.
 - The leak check flags; it never blocks or edits. Put every hit in the PR body.
 - A quiet day gets no PR. Say what was there and why it is not worth a post.
@@ -38,15 +39,15 @@ Only `blog_repo` is needed to open a PR; without it, do a dry run. The deny list
 1. **Collect.** Run `python3 scripts/collect_day.py --out <tmp>/day.json` (`--date YYYY-MM-DD` for another day). Read its summary line; a source with an error is a gap to mention, not a reason to stop.
 2. **Digest.** Group the day into 3 to 6 threads of work. Join the sources: a vault entry, the PR it led to, and the messages and answers where the owner decided it are one thread. Use the owner's answers to questions as the record of their decisions.
 3. **Plan.** Pick the one or two threads with a real surprise or decision. Write 2 or 3 questions, each naming the fact behind it. Say which thread could grow into an essay.
-4. **Draft.** Fill [the template](references/post-template.md) at `<posts_dir>/YYYY-MM-DD-<slug>.mdx`. Link only public evidence. Keep private repo names, people and internal numbers out unless the owner has already made them public.
+4. **Draft.** Fill [the template](references/post-template.md) as `YYYY-MM-DD-<slug>.mdx`, in a temporary folder until step 6 places it in `<posts_dir>`. Link only public evidence. Keep private repo names, people and internal numbers out unless the owner has already made them public.
 5. **Check.** Run `python3 scripts/leak_check.py <draft> --day <tmp>/day.json`.
 6. **Open the PR** in `blog_repo`: branch `blog/YYYY-MM-DD` from the latest default branch, one commit with the draft, committed as the owner's normal git identity, then `gh pr create --draft`. Title `Daily log: YYYY-MM-DD`. Body: the questions, the thread digest, the leak check output, and which sources had gaps.
 
-**Dry run** (no `blog_repo`, or the owner asks): stop after step 5 and show the draft, the questions and the leak check.
+Without `blog_repo`, or when a PR was not asked for, stop after step 5 and show the draft, the questions and the leak check.
 
 ## Essays
 
-When the owner asks for an essay on a topic: search the vault and past posts for it, then open a draft PR with `kind: "essay"`, an outline, and the evidence list. Do not write the essay.
+When the owner asks for an essay on a topic: search the vault and past posts for it and show an outline with the evidence list. Do not write the essay. If they ask for a PR, open a draft one with `kind: "essay"` the same way as step 6.
 
 ## Report
 

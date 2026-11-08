@@ -107,6 +107,11 @@ class CommitsTest(unittest.TestCase):
         self.commit(tools, 'Pushed straight to main', noreply)
         self.commit(tools, 'Someone else', 'other@example.com')
         self.commit(tools, 'Add the thing (#12)', noreply)
+        git(tools, 'switch', '-q', '-c', 'merged-pr')
+        self.commit(tools, 'Inside a PR merged with a merge commit', noreply)
+        git(tools, 'switch', '-q', 'main')
+        git(tools, 'merge', '-q', '--no-ff', '-m', 'Merge pull request #13', 'merged-pr',
+            when='2026-11-07T13:00:00-08:00', email=noreply)
         git(tools, 'switch', '-q', '-c', 'feature')
         self.commit(tools, 'Work in progress on a PR branch', noreply)
         git(tools, 'switch', '-q', 'main')

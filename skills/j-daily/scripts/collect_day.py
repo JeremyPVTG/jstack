@@ -165,8 +165,9 @@ def author_emails(extra):
 
 
 def commits(roots, start, end, emails):
-    """Your commits pushed straight to each repo's default branch. PR work is left out: feature
-    branches are not read, and squash merges ("... (#12)") are already listed under prs."""
+    """Your commits pushed straight to each repo's default branch. PR work is left out: only the
+    first-parent line is read (so a merged branch's commits are skipped), and squash merges
+    ("... (#12)") are already listed under prs."""
     if not emails:
         return {'error': 'no author email found; set daily.author_emails'}
     authors = ['--fixed-strings', *(f'--author={email}' for email in emails)]
@@ -179,7 +180,7 @@ def commits(roots, start, end, emails):
         except subprocess.CalledProcessError:
             branch = 'HEAD'
         try:
-            out = run(['git', 'log', branch, '--no-merges', f'--since={start.isoformat()}',
+            out = run(['git', 'log', branch, '--first-parent', '--no-merges', f'--since={start.isoformat()}',
                        *authors, '--format=%cI%x1f%s'], cwd=repo)
         except subprocess.CalledProcessError:
             continue
