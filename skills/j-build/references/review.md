@@ -1,6 +1,6 @@
 # Review stage
 
-Three lenses on every task, each a fresh reviewer running j-review in assess mode that sees only the diff and the brief:
+Three lenses on every task, each a fresh reviewer running j-review in assess mode that sees only the diff, the brief and the build file's path:
 
 - **Correctness:** wrong results, crashes, leaks, races, error paths that leave state behind, contract mismatches with callers (read the caller's code).
 - **Repo rules:** the repository's AGENTS.md, principles and build file review rules; decisions the change contradicts without a new decision record.
@@ -17,5 +17,5 @@ Report only defects with a concrete failure path. No style or formatting notes; 
 
 ## Running it
 
-- **Claude Code with the Workflow tool** (when the user has asked for a workflow): `Workflow({scriptPath: "<this skill>/references/workflow.js", args: {goal, base, checks: [...]}})`, with `base` and `checks` from the build file. The result has `verdict`, `confirmed`, `refuted`, `unverified` and `fix`. Read `unverified` yourself.
+- **Claude Code with the Workflow tool** (when the user has asked for a workflow): `Workflow({scriptPath: "<this skill>/references/workflow.js", args: {goal, base, buildFile, checks: [...]}})`, with `base` and `checks` from the build file and `buildFile` its path. The result has `verdict`, `confirmed`, `refuted`, `unverified` and `fix`. Read `unverified` yourself.
 - **Elsewhere:** three subagents (the host's native agent tool, or `delegate_task` in T3) each told to use j-review in assess mode, one refuter per merged finding told to use j-review in confirm mode, then fix what survives yourself (j-review fix mode).
