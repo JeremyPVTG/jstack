@@ -8,6 +8,7 @@ A persistent, compounding research wiki maintained by agents and read by a perso
 - `wiki/` compiled pages, flat, one idea per page. The agent writes these.
 - `index.md` every wiki page with a one-line summary, grouped by type. Read it first.
 - `log.md` append-only record of ingests, research runs, and lint passes.
+- `.gitattributes` marks `index.md` and `log.md` for union merges, so agents appending from different machines do not stop the sync.
 
 ## Raw source files
 
