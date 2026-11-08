@@ -82,6 +82,17 @@ export function wikiProblems(text: string): string[] {
   return problems;
 }
 
+const SCOPE_SECTIONS = ["Goal and proof", "In", "Out", "Risks accepted"];
+
+/** Gaps in a scope decision page against j-scope's template (warnings: older pages predate it). Mirrors vault_lint.py. */
+export function scopeProblems(text: string): string[] {
+  const headings = [...text.matchAll(/^## (.+?)\s*$/gm)].map((m) => m[1]);
+  const problems = SCOPE_SECTIONS.filter((name) => !headings.includes(name)).map((name) => `scope page missing section "${name}" (j-scope template)`);
+  const out = text.match(/^## Out\s*$([\s\S]*?)(?=^## |(?![\s\S]))/m);
+  if (out && /^\s*- /m.test(out[1]) && !out[1].toLowerCase().includes("comes back")) problems.push('scope page Out items name no signal that would bring them back ("Comes back if ...")');
+  return problems;
+}
+
 export function lint(files: Files, today: Date): { errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -118,6 +129,7 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
       if (!problems.length && fields && days(fields.reviewed, today) > WINDOWS[fields.volatility]) {
         warnings.push(`${rel}: stale, reviewed ${fields.reviewed} (${fields.volatility} volatility)`);
       }
+      if (fields?.type === "decision" && rel.toLowerCase().includes(" scope")) for (const problem of scopeProblems(text)) warnings.push(`${rel}: ${problem}`);
     } else if (rel.startsWith("raw/")) {
       const fields = frontmatter(text);
       const missing = RAW_FIELDS.filter((key) => !fields?.[key]);

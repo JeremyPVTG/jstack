@@ -155,3 +155,15 @@ describe("localDate", () => {
     expect(localDate("UTC", evening)).toBe("2026-11-08");
   });
 });
+
+describe("scopeProblems", () => {
+  it("accepts a page in j-scope's shape and flags missing sections and Out signals", async () => {
+    const { scopeProblems } = await import("../src/vault");
+    const full = "# X scope\n\n## Goal and proof\nG\n\n## In\n- A\n\n## Out\n- B: waits. Comes back if users ask.\n\n## Risks accepted\n- R\n";
+    expect(scopeProblems(full)).toEqual([]);
+    const problems = scopeProblems("# X scope\n\n## Goal and proof\nG\n\n## Out\n- B: waits.\n");
+    expect(problems.some((p) => p.includes('"In"'))).toBe(true);
+    expect(problems.some((p) => p.includes('"Risks accepted"'))).toBe(true);
+    expect(problems.some((p) => p.includes("no signal"))).toBe(true);
+  });
+});
