@@ -144,23 +144,11 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
 
 const tokens = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 
-export type Hit = { path: string; title: string; type: string; reviewed: string; stale?: true; superseded_by?: string[]; snippet: string; score: number };
+export type Hit = { path: string; title: string; type: string; reviewed: string; stale?: true; superseded_by?: string[]; match?: "keyword" | "semantic" | "both"; snippet: string; score: number };
+type Info = Pick<Hit, "title" | "type" | "reviewed" | "stale" | "superseded_by">;
 
-/** BM25 over the vault's Markdown, title words weighted, wiki pages ranked above raw captures, superseded pages demoted. Hits flag stale and superseded pages. */
-export function search(files: Files, query: string, limit = 8, today = new Date()): Hit[] {
-  const terms = [...new Set(tokens(query))];
-  if (!terms.length) return [];
-  const docs = Object.entries(files)
-    .filter(([path]) => path.endsWith(".md") && (path.startsWith("wiki/") || path.startsWith("raw/")))
-    .map(([path, text]) => {
-      const title = text.match(/^# (.+)$/m)?.[1] ?? path.split("/").pop()!.replace(/\.md$/, "");
-      const words = [...tokens(title), ...tokens(title), ...tokens(title), ...tokens(text)];
-      const counts = new Map<string, number>();
-      for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
-      return { path, text, title, counts, length: words.length };
-    });
-  const average = docs.reduce((sum, doc) => sum + doc.length, 0) / Math.max(docs.length, 1);
-  const df = new Map(terms.map((term) => [term, docs.filter((doc) => doc.counts.has(term)).length]));
+/** Wiki page title -> titles of the pages that supersede it, lower-cased keys. */
+function successorsOf(files: Files): Map<string, string[]> {
   const successors = new Map<string, string[]>();
   for (const [path, text] of Object.entries(files)) {
     if (!path.startsWith("wiki/")) continue;
@@ -169,6 +157,37 @@ export function search(files: Files, query: string, limit = 8, today = new Date(
       successors.set(key, [...(successors.get(key) ?? []), path.slice(5, -3)]);
     }
   }
+  return successors;
+}
+
+function info(path: string, text: string, successors: Map<string, string[]>, today: Date): Info {
+  const title = text.match(/^# (.+)$/m)?.[1] ?? path.split("/").pop()!.replace(/\.md$/, "");
+  const fields = frontmatter(text) ?? {};
+  const wiki = path.startsWith("wiki/");
+  const superseded = wiki ? successors.get(path.slice(5, -3).toLowerCase()) : undefined;
+  const stale = wiki && isDate(fields.reviewed ?? "") && fields.volatility in WINDOWS && days(fields.reviewed, today) > WINDOWS[fields.volatility];
+  return { title, type: fields.type ?? (path.startsWith("raw/") ? "source" : ""), reviewed: fields.reviewed ?? fields.captured ?? "", ...(stale ? { stale: true as const } : {}), ...(superseded ? { superseded_by: superseded } : {}) };
+}
+
+/** Pages that search covers: Markdown under wiki/ and raw/. */
+export const searchable = (path: string) => path.endsWith(".md") && (path.startsWith("wiki/") || path.startsWith("raw/"));
+
+/** BM25 over the vault's Markdown, title words weighted, wiki pages ranked above raw captures, superseded pages demoted. Hits flag stale and superseded pages. */
+export function search(files: Files, query: string, limit = 8, today = new Date()): Hit[] {
+  const terms = [...new Set(tokens(query))];
+  if (!terms.length) return [];
+  const docs = Object.entries(files)
+    .filter(([path]) => searchable(path))
+    .map(([path, text]) => {
+      const title = text.match(/^# (.+)$/m)?.[1] ?? path.split("/").pop()!.replace(/\.md$/, "");
+      const words = [...tokens(title), ...tokens(title), ...tokens(title), ...tokens(text)];
+      const counts = new Map<string, number>();
+      for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
+      return { path, text, counts, length: words.length };
+    });
+  const average = docs.reduce((sum, doc) => sum + doc.length, 0) / Math.max(docs.length, 1);
+  const df = new Map(terms.map((term) => [term, docs.filter((doc) => doc.counts.has(term)).length]));
+  const successors = successorsOf(files);
   const k1 = 1.2;
   const b = 0.75;
   return docs
@@ -180,18 +199,53 @@ export function search(files: Files, query: string, limit = 8, today = new Date(
         const idf = Math.log(1 + (docs.length - df.get(term)! + 0.5) / (df.get(term)! + 0.5));
         score += (idf * tf * (k1 + 1)) / (tf + k1 * (1 - b + (b * doc.length) / average));
       }
-      const fields = frontmatter(doc.text) ?? {};
-      const wiki = doc.path.startsWith("wiki/");
-      const superseded = wiki ? successors.get(doc.path.slice(5, -3).toLowerCase()) : undefined;
-      const stale = wiki && isDate(fields.reviewed ?? "") && fields.volatility in WINDOWS && days(fields.reviewed, today) > WINDOWS[fields.volatility];
-      if (wiki) score *= 1.5;
-      if (superseded) score *= 0.5;
+      const meta = info(doc.path, doc.text, successors, today);
+      if (doc.path.startsWith("wiki/")) score *= 1.5;
+      if (meta.superseded_by) score *= 0.5;
       const body = doc.text.replace(/^---\n[\s\S]*?\n---\n/, "");
       const at = terms.map((term) => body.toLowerCase().indexOf(term)).filter((i) => i >= 0).sort((x, y) => x - y)[0] ?? 0;
       const snippet = body.slice(Math.max(0, at - 80), at + 220).replace(/\s+/g, " ").trim();
-      return { path: doc.path, title: doc.title, type: fields.type ?? (doc.path.startsWith("raw/") ? "source" : ""), reviewed: fields.reviewed ?? fields.captured ?? "", ...(stale ? { stale: true as const } : {}), ...(superseded ? { superseded_by: superseded } : {}), snippet, score: Math.round(score * 100) / 100 };
+      return { path: doc.path, ...meta, snippet, score: Math.round(score * 100) / 100 };
     })
     .filter((hit) => hit.score > 0)
+    .sort((x, y) => y.score - x.score)
+    .slice(0, limit);
+}
+
+/** A semantic match from the vector index: a vault path and the matching chunk. */
+export type Semantic = { path: string; text: string };
+
+/**
+ * Merge keyword hits with semantic matches by reciprocal rank fusion (k = 60), keeping
+ * the keyword ranking's preferences: wiki pages x1.5, superseded pages x0.5. Semantic
+ * matches for paths no longer in the vault are dropped. Scores are fused ranks, not BM25.
+ */
+export function fuse(files: Files, keyword: Hit[], semantic: Semantic[], limit = 8, today = new Date()): Hit[] {
+  const successors = successorsOf(files);
+  const merged = new Map<string, Hit & { fused: number }>();
+  keyword.forEach((hit, rank) => merged.set(hit.path, { ...hit, match: "keyword", fused: 1 / (61 + rank) }));
+  const seen = new Set<string>();
+  let rank = 0;
+  for (const match of semantic) {
+    if (seen.has(match.path) || files[match.path] === undefined || !searchable(match.path)) continue;
+    seen.add(match.path);
+    const add = 1 / (61 + rank++);
+    const existing = merged.get(match.path);
+    if (existing) {
+      existing.fused += add;
+      existing.match = "both";
+    } else {
+      const snippet = match.text.replace(/^---\n[\s\S]*?\n---\n/, "").replace(/\s+/g, " ").trim().slice(0, 300);
+      merged.set(match.path, { path: match.path, ...info(match.path, files[match.path], successors, today), match: "semantic", snippet, score: 0, fused: add });
+    }
+  }
+  return [...merged.values()]
+    .map(({ fused, ...hit }) => {
+      let score = fused;
+      if (hit.path.startsWith("wiki/")) score *= 1.5;
+      if (hit.superseded_by) score *= 0.5;
+      return { ...hit, score: Math.round(score * 10_000) / 10_000 };
+    })
     .sort((x, y) => y.score - x.score)
     .slice(0, limit);
 }

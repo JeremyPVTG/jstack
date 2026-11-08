@@ -7,6 +7,10 @@
   "observability": { "enabled": true },
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "9fd0578605934d15a830a221c91922b6" }],
   "ratelimits": [{ "name": "RATE_LIMITER", "namespace_id": "3001", "simple": { "limit": 120, "period": 60 } }],
+  // Semantic search: AI Search instance with built-in storage, created with
+  // `wrangler ai-search create jvault --type builtin --hybrid-search`. The cron re-syncs it from GitHub.
+  "ai_search": [{ "binding": "VAULT_SEARCH", "instance_name": "jvault" }],
+  "triggers": { "crons": ["*/10 * * * *"] },
   "vars": {
     "VAULT_REPO": "JeremyPVTG/research-vault",
     "SKILLS_REPO": "JeremyPVTG/jstack",

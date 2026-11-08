@@ -1,6 +1,7 @@
 import { AuthorizationError, CimdFetchError, getOAuthApi, OAuthProvider, type AuthRequest, type ConsentDescription, type OAuthProviderOptions } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "@modelcontextprotocol/server";
-import { vaultServer, type VaultEnv } from "./tools";
+import { syncIndex } from "./semantic";
+import { vaultServer, vaultSnapshot, type VaultEnv } from "./tools";
 
 /**
  * jvault: a personal remote MCP server for a research vault and agent skills.
@@ -58,6 +59,16 @@ export default {
     if (url.pathname === "/oauth/register" && !(await env.RATE_LIMITER.limit({ key: "register" })).success) return json(429, { error: "too_many_requests" }, { "retry-after": "60" });
     if (url.pathname === "/") return page(200, "Jeremy's vault", "A personal MCP server. Add https://" + url.host + MCP_PATH + " as a connector in your AI tool.");
     return new OAuthProvider(options(url.origin)).fetch(request, { ...env }, ctx);
+  },
+
+  /** Keeps the AI Search index in step with the vault, whichever machine or agent wrote to GitHub. */
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!env.VAULT_SEARCH) return;
+    ctx.waitUntil(
+      vaultSnapshot(env)
+        .then(({ sha, files }) => syncIndex(env.VAULT_SEARCH!, env.OAUTH_KV, files).then((result) => console.log(JSON.stringify({ level: "info", route: "index-sync", vault: sha.slice(0, 7), ...result }))))
+        .catch((error) => console.log(JSON.stringify({ level: "warn", route: "index-sync", message: String(error).slice(0, 200) }))),
+    );
   },
 };
 

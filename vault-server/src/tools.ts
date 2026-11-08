@@ -1,12 +1,14 @@
 import { Server } from "@modelcontextprotocol/server";
 import { GitHubError, headSha, readFile, snapshotAt, writeFile, type Repo } from "./github";
-import { capturePath, captureText, lint, logLine, search, skills, wikiProblems, writablePath, type Capture, type Files } from "./vault";
+import { indexFile, semanticMatches, type VaultIndex } from "./semantic";
+import { capturePath, captureText, fuse, lint, logLine, search, skills, wikiProblems, writablePath, type Capture, type Files } from "./vault";
 
 export type VaultEnv = {
   OAUTH_KV: KVNamespace;
   VAULT_REPO: string;
   SKILLS_REPO: string;
   VAULT_GITHUB_TOKEN: string;
+  VAULT_SEARCH?: VaultIndex;
 };
 
 export const INSTRUCTIONS = [
@@ -26,7 +28,7 @@ const READ = { readOnlyHint: true };
 
 export const TOOLS: Tool[] = [
   { name: "guide", description: "The vault's rules (AGENTS.md) and its index of pages. Call once before using the vault.", inputSchema: { type: "object", properties: {} }, annotations: READ },
-  { name: "search", description: "Search wiki pages and captured sources. Returns paths, titles, review dates and snippets; wiki pages rank above raw captures. `stale: true` means the page is past its volatility window: re-verify before relying on it. `superseded_by` names the page that replaces it: read that instead. Read a page before relying on it.", inputSchema: { type: "object", properties: { query: str("Words to search for"), limit: { type: "number", description: "Max results, default 8" } }, required: ["query"] }, annotations: READ },
+  { name: "search", description: "Search wiki pages and captured sources by keyword and by meaning, so pages worded differently from the query still match. Returns paths, titles, review dates and snippets; wiki pages rank above raw captures. `match` says whether a hit matched by keyword, meaning, or both. `stale: true` means the page is past its volatility window: re-verify before relying on it. `superseded_by` names the page that replaces it: read that instead. Read a page before relying on it.", inputSchema: { type: "object", properties: { query: str("Words to search for"), limit: { type: "number", description: "Max results, default 8" } }, required: ["query"] }, annotations: READ },
   { name: "read", description: "Read one vault file by path, e.g. 'wiki/LLM wiki maintenance.md'. Returns its text and sha (needed to replace it).", inputSchema: { type: "object", properties: { path: str("Path from the vault root") }, required: ["path"] }, annotations: READ },
   { name: "list", description: "List vault file paths under a folder (e.g. 'wiki/' or 'raw/2026-11/').", inputSchema: { type: "object", properties: { prefix: str("Folder prefix; empty for everything") } }, annotations: READ },
   { name: "write_page", description: "Create or replace a wiki page (wiki/<Title>.md) or index.md. To replace, pass the sha from `read`; the write fails if the file changed since. Wiki pages need valid frontmatter (type, reviewed, volatility, sources). Also list new pages in index.md.", inputSchema: { type: "object", properties: { path: str("wiki/<Title>.md or index.md"), content: str("Full new file content"), sha: str("sha from read, required when replacing"), message: str("Short commit message") }, required: ["path", "content"] } },
@@ -49,10 +51,15 @@ async function snapshot(env: VaultEnv, repo: Repo, keep: (path: string) => boole
 
 const textOnly = (path: string) => /\.(md|py|sh|json|txt|ya?ml|ts)$/.test(path);
 
+const vaultRepo = (env: VaultEnv): Repo => ({ slug: env.VAULT_REPO, branch: "main", token: env.VAULT_GITHUB_TOKEN });
+
+/** The vault's Markdown at the head of main (cached per commit). */
+export const vaultSnapshot = (env: VaultEnv) => snapshot(env, vaultRepo(env), (path) => path.endsWith(".md"));
+
 export function vaultServer(env: VaultEnv): Server {
-  const vault: Repo = { slug: env.VAULT_REPO, branch: "main", token: env.VAULT_GITHUB_TOKEN };
+  const vault = vaultRepo(env);
   const jstack: Repo = { slug: env.SKILLS_REPO, branch: "main", token: env.VAULT_GITHUB_TOKEN };
-  const vaultFiles = () => snapshot(env, vault, (path) => path.endsWith(".md"));
+  const vaultFiles = () => vaultSnapshot(env);
   const skillFiles = () => snapshot(env, jstack, (path) => path.startsWith("skills/") && textOnly(path));
 
   const call = async (name: string, args: Record<string, any>): Promise<string> => {
@@ -62,8 +69,11 @@ export function vaultServer(env: VaultEnv): Server {
         return `${files["AGENTS.md"] ?? "(no AGENTS.md)"}\n\n---\n\n${files["index.md"] ?? "(no index.md)"}`;
       }
       case "search": {
-        const { files } = await vaultFiles();
-        const hits = search(files, String(args.query ?? ""), Math.min(Number(args.limit) || 8, 20));
+        const query = String(args.query ?? "");
+        const limit = Math.min(Number(args.limit) || 8, 20);
+        const [{ files }, semantic] = await Promise.all([vaultFiles(), semanticMatches(env.VAULT_SEARCH, query, limit)]);
+        const keyword = search(files, query, semantic ? 50 : limit);
+        const hits = semantic ? fuse(files, keyword, semantic, limit) : keyword;
         return hits.length ? JSON.stringify(hits, null, 1) : "No matches. Try other words, or `list` a folder.";
       }
       case "read": {
@@ -84,13 +94,16 @@ export function vaultServer(env: VaultEnv): Server {
           if (problems.length) throw new Error(`Frontmatter: ${problems.join("; ")}`);
         }
         const result = await writeFile(vault, path, content, args.message ? `agent: ${String(args.message).slice(0, 100)}` : `agent: update ${path}`, args.sha ? String(args.sha) : undefined);
+        await indexFile(env.VAULT_SEARCH, env.OAUTH_KV, path, content);
         return `Saved ${path} (sha ${result.sha}). ${path.startsWith("wiki/") ? "Make sure index.md lists it, then run lint." : ""}`;
       }
       case "capture_source": {
         const day = today();
         const capture = args as Capture;
         const path = capturePath(capture, day);
-        await writeFile(vault, path, captureText(capture, day), `agent: capture ${path}`);
+        const text = captureText(capture, day);
+        await writeFile(vault, path, text, `agent: capture ${path}`);
+        await indexFile(env.VAULT_SEARCH, env.OAUTH_KV, path, text);
         return `Captured ${path}. Link it from wiki pages as [[${path.slice(0, -3)}]].`;
       }
       case "append_log": {
