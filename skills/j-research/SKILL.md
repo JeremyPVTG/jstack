@@ -59,4 +59,4 @@ When the research feeds a build, buy, or scope decision and the vault has a rese
 
 ## Cost
 
-Free sources first. State the expected cost before paid calls; stay under about $2 per run unless the user sets a budget, and record the approximate paid spend in the log line. Tools and pricing: [sources](references/sources.md).
+Free sources first. State the expected cost before paid calls; stay under about 2 US dollars per run unless the user sets a budget, and record the approximate paid spend in the log line. Tools and pricing: [sources](references/sources.md).
