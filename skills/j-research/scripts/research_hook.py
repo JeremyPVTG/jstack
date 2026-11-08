@@ -11,7 +11,7 @@ Chosen over a Haiku call after a comparison on 71 labelled prompts (jstack-evals
 experiments/2026-11-08-trigger-classifier): Jev fired on 40/40 research prompts
 and 0/31 others, at a median of about 165 ms; Haiku 39/40 and 0/31 at about 710 ms.
 
-Key: TYPESAFE_API_KEY from the environment, else the macOS keychain item
+Key: TYPESAFE_API_KEY (or EVAL_TYPESAFE_API_KEY under `claude plugin eval`) from the environment, else the macOS keychain item
 `jstack-typesafe` (security add-generic-password -s jstack-typesafe -a "$USER" -w).
 """
 import json
@@ -57,8 +57,9 @@ def decide(a: dict) -> bool:
 
 
 def api_key() -> str | None:
-    if os.environ.get("TYPESAFE_API_KEY"):
-        return os.environ["TYPESAFE_API_KEY"]
+    for name in ("TYPESAFE_API_KEY", "EVAL_TYPESAFE_API_KEY"):  # plugin evals pass only EVAL_* variables
+        if os.environ.get(name):
+            return os.environ[name]
     try:
         out = subprocess.run(["security", "find-generic-password", "-s", "jstack-typesafe", "-w"], capture_output=True, text=True, timeout=2)
         return out.stdout.strip() or None
