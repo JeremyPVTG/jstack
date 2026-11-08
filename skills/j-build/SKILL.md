@@ -19,7 +19,7 @@ Every run, at every size:
 - **Standard:** everything else. All stages.
 - **Risky:** touches money, user data, auth, secrets, migrations, or files the build file marks as gated. All stages; ask before building.
 
-If the repo predicts a risk or approval tier from the diff, run that prediction as soon as a diff exists and size again from the result: a one-line config change can make a docs task risky.
+If the repo predicts a risk or approval tier from the diff, run that prediction as soon as there is a committed diff (predictors compare commits; on uncommitted work they see nothing) and size again from the result: a one-line config change can make a docs task risky.
 
 If the task grows mid-way (a second cause, a gated file, a new dependency), stop, say so, and step up a size. Visual or creative iteration (layouts, renders, copy tone) is not this skill's job: say so and work with the owner directly.
 
@@ -43,7 +43,7 @@ Exit: root cause with file:line evidence, a yes or no on each prerequisite, and 
 
 ## 2. Decide
 
-Look for what already exists before proposing new code. Compare at most three options with a recommendation, naming the cost of each and any recorded decision it touches. When the scope itself is unsettled, use j-scope. A brief that authorises the build covers the build only; anything it leaves open that hits a stop goes to the owner as a question.
+Look for what already exists before proposing new code. Compare at most three options with a recommendation, naming the cost of each and any recorded decision it touches. Check the budgets the change will hit (file length caps, ratchets, bundle sizes) before choosing; they can decide the design. When the scope itself is unsettled, use j-scope. A brief that authorises the build covers the build only; anything it leaves open that hits a stop goes to the owner as a question.
 
 Exit: the owner's go-ahead for small and standard work is the brief itself unless a stop applies; risky work needs it explicitly.
 
@@ -55,13 +55,13 @@ Exit: it compiles, lints, and its own tests pass.
 
 ## 4. Review
 
-Three fresh reviewers, each told only the diff and the brief, never your conclusions: correctness, the repo's rules, tests. Each finding is refuted independently; findings are merged by root cause; only confirmed ones are fixed; the result ends with a verdict, CLEAN or FINDINGS. Each lens is j-review in assess mode; each refutation is j-review in confirm mode. For Small or docs-only work you may check the findings yourself instead of with separate refuters; say so in the report. [How](references/review.md).
+Three fresh reviewers, each told only the diff, the brief and the build file's path, never your conclusions: correctness, the repo's rules, tests. Findings are merged by root cause, then each is refuted independently; only confirmed ones are fixed; the result ends with a verdict, CLEAN or FINDINGS. Each lens is j-review in assess mode; each refutation is j-review in confirm mode. For Small or docs-only work you may check the findings yourself instead of with separate refuters; say so in the report. [How](references/review.md).
 
 Exit: verdict CLEAN, or every confirmed high and medium finding fixed and the checks re-run.
 
 ## 5. Verify
 
-Run, before pushing, exactly the checks the build file says the push hook and CI run, scoped to the files you changed, plus one smoke test on the real path. Follow the build file's rules for where heavy work runs.
+Run, before pushing, exactly the checks the build file says the push hook and CI run, scoped to the files you changed, plus one smoke test on the real path. Follow the build file's rules for where heavy work runs; if the real path needs what you cannot run here (GPU, large downloads), say so under what was not verified. If a hook or check fails for a reason outside the change (a broken local tool), stop and report it; never bypass the hook.
 
 Exit: you can say what ran, where, at which commit, and with what result.
 

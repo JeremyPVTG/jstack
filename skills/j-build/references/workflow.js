@@ -10,11 +10,12 @@ export const meta = {
   ],
 }
 
-// args: { goal: string, base: string, checks?: string[], maxFindings?: number }
+// args: { goal: string, base: string, buildFile?: string, checks?: string[], maxFindings?: number }
 // base and checks come from the repository's build file (docs/agents/build.md or what AGENTS.md names).
 const goal = (args && args.goal) || 'the change on this branch'
 const base = (args && args.base) || 'origin/main'
 const checks = (args && args.checks) || []
+const buildFile = (args && args.buildFile) || 'the build file AGENTS.md (or CLAUDE.md) names for building'
 const MAX_FINDINGS = (args && args.maxFindings) || 6
 
 const FINDINGS = {
@@ -84,7 +85,7 @@ const scope = `The change under review, in the current directory: \`git diff ${b
 
 const LENSES = [
   { key: 'correctness', prompt: `${scope}\n\nLens: correctness. Wrong results, crashes, resource leaks, races, error paths that leave state behind, contract mismatches with the caller (read the caller's code, not just the docs).` },
-  { key: 'rules', prompt: `${scope}\n\nLens: the repository's own rules. Read AGENTS.md (or CLAUDE.md), the build file it names for building, and any principles or decision records they point to. Report changes that break those rules, or that contradict a recorded decision without adding a new decision record.` },
+  { key: 'rules', prompt: `${scope}\n\nLens: the repository's own rules. Read AGENTS.md (or CLAUDE.md), ${buildFile}, and any principles or decision records they point to. Report changes that break those rules, or that contradict a recorded decision without adding a new decision record.` },
   { key: 'tests', prompt: `${scope}\n\nLens: tests. Behaviour the change adds that no test exercises, tests that pass for the wrong reason, timing races in tests, fakes that diverge from the real interface they stand in for.` },
 ]
 
