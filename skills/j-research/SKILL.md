@@ -9,7 +9,7 @@ Research compounds: check what is already known, find what is current, and leave
 
 Every run, in every mode:
 
-1. Search the vault before the web.
+1. Search the vault before the web, and open the pages you rely on: a search snippet is not the page.
 2. Answer only from what you read in this run: vault pages inside their window and sources you opened. Having loaded this skill, do not answer from training knowledge, even when the question looks like design advice.
 3. Cite each decisive fact with its source and date.
 
