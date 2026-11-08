@@ -29,7 +29,7 @@ Stop and ask when the work needs a secret or credential, spends money, takes an 
 
 ## 0. Brief
 
-Before changing anything, restate in a few lines: the goal as the owner will see it working, the stops that apply, what the brief forbids, what the work depends on, the size, and the branch name (a tracker or delivery node's branch wins over one you invent). When the task is a node in a delivery plan, read the node first: its gate conditions are stops.
+Before changing anything, restate in a few lines: the goal as done-criteria a user could observe, the stops that apply, what the brief forbids, what the work depends on, the size, and the branch name (a tracker or delivery node's branch wins over one you invent). When the task is a node in a delivery plan, read the node first: its gate conditions are stops.
 
 ## 1. Diagnose (read-only)
 
@@ -61,7 +61,7 @@ Exit: `VERDICT: CLEAN`, meaning every lens ran, every finding was refuted or fix
 
 ## 5. Verify
 
-Run, before pushing, exactly the checks the build file says the push hook and CI run, scoped to the files you changed, plus one smoke test on the real path. Follow the build file's rules for where heavy work runs; if the real path needs what you cannot run here (GPU, large downloads), say so under what was not verified. If a hook or check fails for a reason outside the change (a broken local tool), stop and report it; never bypass the hook.
+Run, before pushing, exactly the checks the build file says the push hook and CI run, scoped to the files you changed. Then check each done-criterion on the entry point users actually run (the repo's `verify` skill if it has one), not only tests, and give each a verdict: VERIFIED, NOT VERIFIED, or INCONCLUSIVE when it cannot run here (GPU, credentials). Follow the build file's rules for where heavy work runs. If a hook or check fails for a reason outside the change (a broken local tool), stop and report it; never bypass the hook.
 
 Exit: you can say what ran, where, at which commit, and with what result.
 
@@ -71,4 +71,4 @@ Use j-deliver: commit and push with hooks on (never skip them), open a draft PR 
 
 ## 7. Report
 
-Lead with the answer. For Small work, at most five lines: the answer, what changed, which check ran at which commit and its result, then the next actions. Otherwise: root cause, what changed, what ran where and its result, PR link and head commit, check state, what was not verified, and the owner's next actions as a numbered list, or "Nothing needed from you".
+Lead with the answer. For Small work, at most five lines: the answer, what changed, which check ran at which commit and its result, then the next actions. Otherwise: root cause, what changed, what ran where and its result, PR link and head commit, check state, each done-criterion's verdict and its evidence, and the owner's next actions as a numbered list, or "Nothing needed from you".
