@@ -100,16 +100,40 @@ class CommitsTest(unittest.TestCase):
         git(repo, 'add', 'f')
         git(repo, 'commit', '-q', '-m', subject, when=when, email=email)
 
-    def test_finds_noreply_commits_and_skips_repos_that_had_a_pr(self):
+    def test_keeps_direct_noreply_commits_and_leaves_pr_work_out(self):
         noreply = '123+me@users.noreply.github.com'
         tools = self.repo('tools', 'me/tools')
         self.commit(tools, 'Yesterday', noreply, when='2026-11-06T12:00:00-08:00')
         self.commit(tools, 'Pushed straight to main', noreply)
         self.commit(tools, 'Someone else', 'other@example.com')
-        app = self.repo('app', 'org/app')
-        self.commit(app, 'Covered by a PR', noreply)
-        repos = cd.commits([str(self.root)], START, END, {'org/app'}, [noreply])['repos']
+        self.commit(tools, 'Add the thing (#12)', noreply)
+        git(tools, 'switch', '-q', '-c', 'merged-pr')
+        self.commit(tools, 'Inside a PR merged with a merge commit', noreply)
+        git(tools, 'switch', '-q', 'main')
+        git(tools, 'merge', '-q', '--no-ff', '-m', 'Merge pull request #13', 'merged-pr',
+            when='2026-11-07T13:00:00-08:00', email=noreply)
+        git(tools, 'switch', '-q', '-c', 'feature')
+        self.commit(tools, 'Work in progress on a PR branch', noreply)  # left checked out
+        repos = cd.commits([str(self.root)], START, END, [noreply])['repos']
         self.assertEqual(repos, [{'repo': 'me/tools', 'count': 1, 'subjects': ['Pushed straight to main']}])
+
+
+    def test_a_clone_counts_unpushed_commits_on_its_default_branch(self):
+        noreply = '123+me@users.noreply.github.com'
+        remote = Path(tempfile.mkdtemp())
+        git(remote, 'init', '-q', '--bare', '-b', 'main')
+        seed = new_repo()
+        (seed / 'f').write_text('seed')
+        git(seed, 'add', 'f')
+        git(seed, 'commit', '-q', '-m', 'Pushed earlier', when='2026-11-07T09:00:00-08:00', email=noreply)
+        git(seed, 'push', '-q', str(remote), 'main')
+        git(self.root, 'clone', '-q', str(remote), 'app')
+        app = self.root / 'app'
+        self.commit(app, 'Not pushed yet', noreply)
+        git(app, 'switch', '-q', '-c', 'feature')
+        self.commit(app, 'Feature work', noreply)
+        repos = cd.commits([str(self.root)], START, END, [noreply])['repos']
+        self.assertEqual(repos[0]['subjects'], ['Not pushed yet', 'Pushed earlier'])
 
 
 class T3Test(unittest.TestCase):

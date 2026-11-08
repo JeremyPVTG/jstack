@@ -5,7 +5,7 @@ the only write is a `git fetch` of the vault's remote-tracking refs.
 Sources:
   vault    entries appended to the research vault's log.md, placed by commit time
   prs      pull requests you opened or merged on GitHub (gh search prs)
-  commits  your commits in local repos that had no pull request that day
+  commits  your commits on each local repo's default branch, pushed or not, outside PRs
   t3       messages you typed in T3 Code and your answers to its questions
 
 A source that fails is reported under its "error" key; the others still run.
@@ -35,6 +35,7 @@ from zoneinfo import ZoneInfo
 CONFIG = Path(os.environ.get('JSTACK_CONFIG', '~/.config/jstack/config.json')).expanduser()
 LOG_LINE = re.compile(r'^## \[(\d{4}-\d{2}-\d{2})\] (\w+) \| (.*)$')
 COMMIT_MARK = 'COMMIT\x1f'
+SQUASH_MERGE = re.compile(r'\(#\d+\)$')
 MAX_TEXT = 4000
 T3_COLUMNS = {
     'orchestration_v2_projection_messages': {'thread_id', 'role', 'created_at', 'payload_json'},
@@ -163,26 +164,48 @@ def author_emails(extra):
     return sorted(email for email in emails if email)
 
 
-def commits(roots, start, end, pr_repos, emails):
-    """Your commit subjects per repo, skipping repos whose work is already in a PR that day."""
+def default_branches(repo):
+    """The remote default branch plus its local counterpart (for commits not yet pushed),
+    or local main/master when there is no remote one. Never the checked-out feature branch."""
+    def exists(ref):
+        try:
+            run(['git', 'rev-parse', '--verify', '-q', ref], cwd=repo)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+    for remote in ('refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master'):
+        if exists(remote):
+            short = run(['git', 'rev-parse', '--abbrev-ref', remote], cwd=repo).strip()  # e.g. origin/main
+            local = 'refs/heads/' + short.split('/', 1)[-1]
+            return [remote] + ([local] if exists(local) else [])
+    for local in ('refs/heads/main', 'refs/heads/master'):
+        if exists(local):
+            return [local]
+    return []
+
+
+def commits(roots, start, end, emails):
+    """Your commits on each repo's default branch (pushed or not) that did not come from a PR. PR work is left out: only the
+    first-parent line is read (so a merged branch's commits are skipped), and squash merges
+    ("... (#12)") are already listed under prs."""
     if not emails:
         return {'error': 'no author email found; set daily.author_emails'}
     authors = ['--fixed-strings', *(f'--author={email}' for email in emails)]
     found = []
     for repo in local_repos(roots):
         name = remote_name(repo)
-        if name and name in pr_repos:
+        branches = default_branches(repo)
+        if not branches:
             continue
         try:
-            out = run(['git', 'log', '--all', '--no-merges', f'--since={start.isoformat()}',
-                       *authors, '--format=%H%x1f%cI%x1f%s'], cwd=repo)
+            out = run(['git', 'log', *branches, '--first-parent', '--no-merges', f'--since={start.isoformat()}',
+                       *authors, '--format=%cI%x1f%s'], cwd=repo)
         except subprocess.CalledProcessError:
             continue
-        subjects, shas = [], set()
+        subjects = []
         for line in out.splitlines():
-            sha, when, subject = line.split('\x1f', 2)
-            if sha not in shas and start <= parse_time(when) < end:
-                shas.add(sha)
+            when, subject = line.split('\x1f', 1)
+            if start <= parse_time(when) < end and not SQUASH_MERGE.search(subject):
                 subjects.append(subject)
         if subjects:
             found.append({'repo': name or repo.name, 'count': len(subjects), 'subjects': subjects[:50]})
@@ -246,10 +269,9 @@ def collect(day, tz, cfg):
     vault = os.environ.get('J_RESEARCH_VAULT') or cfg.get('research_vault')  # same order as j-research
     result['vault'] = guarded(lambda: vault_entries(vault, start, end))
     result['prs'] = guarded(lambda: pull_requests(start, end))
-    pr_repos = {pr['repo'] for key in ('opened', 'merged') for pr in result['prs'].get(key, [])}
     roots = daily.get('repo_roots') or [str(Path.home())]
     emails = author_emails(daily.get('author_emails', []))
-    result['commits'] = guarded(lambda: commits(roots, start, end, pr_repos, emails))
+    result['commits'] = guarded(lambda: commits(roots, start, end, emails))
     t3 = daily.get('t3_state') or str(Path.home() / '.t3' / 'userdata' / 'statev2.sqlite')
     result['t3'] = guarded(lambda: t3_activity(t3, start, end))
     return result
@@ -264,7 +286,7 @@ def summary(result):
         part('vault', f"{len(result['vault'].get('entries', []))} entries"),
         part('prs', f"{len(prs.get('merged', []))} merged, {len(prs.get('opened', []))} opened"),
         part('commits', f"{sum(r['count'] for r in result['commits'].get('repos', []))} in "
-                        f"{len(result['commits'].get('repos', []))} repos without a PR"),
+                        f"{len(result['commits'].get('repos', []))} repos, outside PRs"),
         part('t3', f"{sum(len(t['messages']) for t in t3.get('threads', []))} messages in "
                    f"{len(t3.get('threads', []))} threads, {len(t3.get('answers', []))} answers"),
     ])
