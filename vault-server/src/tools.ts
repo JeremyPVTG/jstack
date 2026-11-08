@@ -24,7 +24,7 @@ type Tool = { name: string; description: string; inputSchema: Record<string, unk
 const str = (description: string) => ({ type: "string", description });
 const READ = { readOnlyHint: true };
 
-const TOOLS: Tool[] = [
+export const TOOLS: Tool[] = [
   { name: "guide", description: "The vault's rules (AGENTS.md) and its index of pages. Call once before using the vault.", inputSchema: { type: "object", properties: {} }, annotations: READ },
   { name: "search", description: "Search wiki pages and captured sources. Returns paths, titles, review dates and snippets; wiki pages rank above raw captures. `stale: true` means the page is past its volatility window: re-verify before relying on it. `superseded_by` names the page that replaces it: read that instead. Read a page before relying on it.", inputSchema: { type: "object", properties: { query: str("Words to search for"), limit: { type: "number", description: "Max results, default 8" } }, required: ["query"] }, annotations: READ },
   { name: "read", description: "Read one vault file by path, e.g. 'wiki/LLM wiki maintenance.md'. Returns its text and sha (needed to replace it).", inputSchema: { type: "object", properties: { path: str("Path from the vault root") }, required: ["path"] }, annotations: READ },

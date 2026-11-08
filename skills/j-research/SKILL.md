@@ -1,6 +1,6 @@
 ---
 name: j-research
-description: Research how to build something, answer an open question, or compare options from current sources, compiling what is learned into a persistent research vault. Use for "find a way to build X", "what's best practice for Y", "is there something that already does Z", or decisions that need evidence.
+description: Use this skill before answering any question that depends on facts that can change: versions, prices, limits, best practice, what tools or services exist, whether something is ready for production, or how to build or choose something. It checks the research vault first, searches current sources, and saves what it learns. Training knowledge is not enough for these questions. Not for code edits, writing, or explaining stable concepts.
 ---
 
 # Research

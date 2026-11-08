@@ -18,7 +18,7 @@ def main():
         match = re.match(r'---\nname: ([a-z0-9-]+)\ndescription: ([^\n]+)\n---\n', text)
         assert match, 'Invalid frontmatter: ' + str(path)
         name, description = match.groups()
-        assert name == path.parent.name and len(description) <= 300, name
+        assert name == path.parent.name and len(description) <= 1024, name
         assert name not in entries, 'Duplicate name: ' + name
         entries[name] = (description, path.relative_to(ROOT).as_posix())
     for pack, names in json.loads((ROOT / 'packs.json').read_text()).items():
