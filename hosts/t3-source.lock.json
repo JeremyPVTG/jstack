@@ -1,55 +1,55 @@
 {
   "repository": "https://github.com/pingdotgg/t3code",
-  "revision": "25bf84ab07f53f141c20239c63e383823a9d5ea0",
+  "revision": "09a54f01bc0ae83865347a965ced50f8c8ec2953",
   "observed_on": "2026-11-07",
   "status": "source-inspected-runtime-not-certified",
   "installed_version_match": "not-verified",
   "files": [
     {
       "path": "packages/provider-core/src/server/orchestrationInstructions.ts",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/packages/provider-core/src/server/orchestrationInstructions.ts#L1-L34",
-      "sha256": "556cddc92597ed3831934aa550b70042608ab961045b2e00bfe9b37f74d06b95",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/packages/provider-core/src/server/orchestrationInstructions.ts#L1-L34",
+      "sha256": "726fb93ee79bf20384005ab30b3a9253adbc9379b3884787269839192e432102",
       "purpose": "T3-provided agent instructions; authoritative snapshot for delegation and tool-use expectations"
     },
     {
       "path": "docs/orchestration-v2/provider-capability-system.md",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/docs/orchestration-v2/provider-capability-system.md#L1-L45",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/docs/orchestration-v2/provider-capability-system.md#L1-L45",
       "sha256": "835c479fc055a9d2abcf88805e865a41846a76eeea52ba49a977fd55eb84d45c",
       "purpose": "Capability design; documentation is architectural evidence, not a runtime probe"
     },
     {
       "path": "docs/orchestration-v2/orchestrator-mcp-server.md",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/docs/orchestration-v2/orchestrator-mcp-server.md#L187-L280",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/docs/orchestration-v2/orchestrator-mcp-server.md#L187-L280",
       "sha256": "674f633d32554ac6e937ca62f28345706955d62a83ac143e7bc8c5d0b7182f8e",
       "purpose": "MCP injection, provider capability discovery, delegation lifecycle"
     },
     {
       "path": "apps/server/src/provider/Drivers/ClaudeSkills.ts",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/apps/server/src/provider/Drivers/ClaudeSkills.ts#L495-L595",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/apps/server/src/provider/Drivers/ClaudeSkills.ts#L495-L595",
       "sha256": "a74b685308d1dbe7851097e1443adbb267df748bfde85768b4fec3a289519997",
       "purpose": "Claude skill discovery roots and name precedence"
     },
     {
       "path": "packages/provider-cursor/src/server/skills.ts",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/packages/provider-cursor/src/server/skills.ts#L220-L255",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/packages/provider-cursor/src/server/skills.ts#L220-L255",
       "sha256": "fff9d8b16d72fc776b95882b31edbf62117ca949a0c63270e8c8868fda7f3c08",
       "purpose": "Cursor skill scanning and discovery roots"
     },
     {
       "path": "packages/client-runtime/src/providerSkills.ts",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/packages/client-runtime/src/providerSkills.ts#L1-L80",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/packages/client-runtime/src/providerSkills.ts#L1-L80",
       "sha256": "8aad0264a2d395aaacad37b8384808f0ed52cc4a22cdd54aafb221b3ed7d4085",
       "purpose": "Skill metadata, menu visibility, and workspace snapshots"
     },
     {
       "path": "evals/mcp-tool-use/README.md",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/evals/mcp-tool-use/README.md#L1-L45",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/evals/mcp-tool-use/README.md#L1-L45",
       "sha256": "75a2cd88e823b04d76db63656f8b73646c5604afb04a294da771d2cdbcf673bf",
       "purpose": "Upstream evaluation approach; not jstack results"
     },
     {
       "path": "evals/mcp-tool-use/cases/orchestration.ndjson",
-      "url": "https://github.com/pingdotgg/t3code/blob/25bf84ab07f53f141c20239c63e383823a9d5ea0/evals/mcp-tool-use/cases/orchestration.ndjson#L1-L37",
+      "url": "https://github.com/pingdotgg/t3code/blob/09a54f01bc0ae83865347a965ced50f8c8ec2953/evals/mcp-tool-use/cases/orchestration.ndjson#L1-L37",
       "sha256": "2b363ea5207cf9ef15acfe985637a961bfa5333f2120016d4b03a6d15d18dabf",
       "purpose": "Existing orchestration regression examples; do not call reused examples held-out"
     }
