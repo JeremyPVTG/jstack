@@ -32,7 +32,10 @@ def secrets(text):
     try:
         findings = json.loads(done.stdout or '[]')
     except ValueError:
-        return [f'gitleaks failed: {done.stderr.strip()[:200]}']
+        findings = []
+    if not findings:  # a nonzero exit with no report means gitleaks itself failed
+        error = re.sub(r'\x1b\[[0-9;]*m', '', done.stderr).strip()[:200]  # drop terminal colours
+        return [f'gitleaks failed, so secrets were not checked: {error}']
     return [f"possible secret ({f.get('RuleID')}) on line {f.get('StartLine')}" for f in findings]
 
 
