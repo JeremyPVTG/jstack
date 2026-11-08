@@ -33,7 +33,7 @@ Stop after three waves, or when only the owner can move it (an approval, an ask 
 
 ## Fix CI
 
-Read the failing job's log for this head and quote the error. Reproduce with the cheapest local command that shows it, within the build file's limits on where heavy work runs. Fix only what the check flags, with a test where it is behaviour, and push it in the next wave.
+Read the failing job's log for this head and quote the error. Classify it first ([CI rules](references/ci.md)): a failure in code the diff never touches is the base's (already fixed there, or red there too), so update from the base or report it; never patch code outside the diff on the branch. Otherwise reproduce with the cheapest local command that shows it, within the build file's limits on where heavy work runs. Fix only what the check flags, with a test where it is behaviour, and push it in the next wave.
 
 ## Readiness
 
