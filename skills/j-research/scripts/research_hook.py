@@ -24,6 +24,9 @@ MODEL = "jev-1.14.0"
 URL = os.environ.get("TYPESAFE_ENDPOINT", "https://api.typesafe.ai") + "/v1/systemone"
 TIMEOUT = 3.0  # seconds; a slow call adds nothing rather than holding up the prompt
 YES, NO = 0.70, 0.30
+# Hosts deliver some messages through UserPromptSubmit that the user did not type: T3 delegated-task
+# results and background notices. A research-shaped result would otherwise trigger a pointless reminder.
+NOT_USER = ("Delegated task ", "<task-notification", "[SYSTEM NOTIFICATION", "<system-reminder>")
 REMINDER = (
     "This request depends on current outside facts or on how to build, set up or choose something. "
     "Use the j-research skill before answering: check the vault, then current sources, and cite them."
@@ -81,6 +84,8 @@ def main() -> int:
     except (ValueError, AttributeError):
         return 0
     if len(prompt) < 12 or prompt.startswith("/"):  # slash commands and one-word replies
+        return 0
+    if prompt.startswith(NOT_USER):  # results and notices the host delivers as prompts, not questions
         return 0
     key = api_key()
     if not key:
