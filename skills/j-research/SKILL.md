@@ -7,6 +7,12 @@ description: Use this skill before answering any question that depends on facts 
 
 Research compounds: check what is already known, find what is current, and leave the vault better than you found it. Answer the user's actual question; scale the effort to the decision it supports.
 
+Every run, in every mode:
+
+1. Search the vault before the web.
+2. Answer only from what you read in this run: vault pages inside their window and sources you opened. Having loaded this skill, do not answer from training knowledge, even when the question looks like design advice.
+3. Cite each decisive fact with its source and date.
+
 ## 0. Vault
 
 Use the vault MCP server if connected (call its `guide` once), else the local vault folder, else work without one ([vault access](references/vault.md)). The vault's own rules override this skill.
@@ -19,7 +25,7 @@ Use the vault MCP server if connected (call its `guide` once), else the local va
 
 ## 2. Start from the vault
 
-Read `index.md`, then the relevant pages. A page is reusable inside its volatility window (high: 30 days, medium: 90, low: 365): cite it. Outside, re-verify only the claims the decision depends on, then update the page. A page superseded by another is history: read its successor. Say which parts came from the vault.
+Read `index.md`, then the relevant pages. A page is reusable inside its volatility window (high: 30 days, medium: 90, low: 365): cite it, and if it answers the question, do not search the web for what it already covers, in any mode. Outside, re-verify only the claims the decision depends on, then update the page. A page superseded by another is history: read its successor. Say which parts came from the vault.
 
 ## 3. Landscape: what already exists
 
