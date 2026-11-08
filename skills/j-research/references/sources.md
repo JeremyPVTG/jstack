@@ -9,6 +9,7 @@ Only facts an agent would not already know. Each carries the date it was last ch
 | Primary docs and pages ("the official page that explains X") | Exa `web_search_exa` (describe the ideal page, not keywords), then `web_fetch_exa` | Semantic. In a 2026-11-07 test it was the only one to return the official docs page. |
 | Recent, dated breadth | Tavily `tavily_search` with `time_range` or `start_date`; `tavily_extract` for full text | Fast, filters by date, good snippets. |
 | Code, GitHub issues and PRs | Firecrawl `firecrawl_search` with `categories: ["developer"]`; `firecrawl_scrape` for script-heavy pages | Its developer index returned GitHub issues and repos the other two missed. |
+| Reddit threads | last30days, or Tavily search snippets | Firecrawl refuses reddit.com, and Exa's fetch and Tavily's extract returned nothing for a thread (2026-11-07); quote only what the snippet shows. |
 | Fallback | The host's own web search and fetch | Use when none of the three is connected, and say so in the coverage line. |
 | Paid multi-step research | Exa `agent_run`, Firecrawl agent, Tavily research | Billed per run. Check their citations like any other summary. |
 | Video transcripts | `yt-dlp --write-auto-subs --skip-download` | Auto-captions mangle names and numbers; confirm anything decisive elsewhere. |
