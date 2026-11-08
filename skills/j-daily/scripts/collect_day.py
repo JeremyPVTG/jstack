@@ -5,7 +5,7 @@ the only write is a `git fetch` of the vault's remote-tracking refs.
 Sources:
   vault    entries appended to the research vault's log.md, placed by commit time
   prs      pull requests you opened or merged on GitHub (gh search prs)
-  commits  your commits pushed straight to a local repo's default branch (not PR work)
+  commits  your commits on each local repo's default branch, pushed or not, outside PRs
   t3       messages you typed in T3 Code and your answers to its questions
 
 A source that fails is reported under its "error" key; the others still run.
@@ -176,7 +176,7 @@ def default_branch(repo):
 
 
 def commits(roots, start, end, emails):
-    """Your commits pushed straight to each repo's default branch. PR work is left out: only the
+    """Your commits on each repo's default branch (pushed or not) that did not come from a PR. PR work is left out: only the
     first-parent line is read (so a merged branch's commits are skipped), and squash merges
     ("... (#12)") are already listed under prs."""
     if not emails:
@@ -277,7 +277,7 @@ def summary(result):
         part('vault', f"{len(result['vault'].get('entries', []))} entries"),
         part('prs', f"{len(prs.get('merged', []))} merged, {len(prs.get('opened', []))} opened"),
         part('commits', f"{sum(r['count'] for r in result['commits'].get('repos', []))} in "
-                        f"{len(result['commits'].get('repos', []))} repos, pushed directly"),
+                        f"{len(result['commits'].get('repos', []))} repos, outside PRs"),
         part('t3', f"{sum(len(t['messages']) for t in t3.get('threads', []))} messages in "
                    f"{len(t3.get('threads', []))} threads, {len(t3.get('answers', []))} answers"),
     ])
