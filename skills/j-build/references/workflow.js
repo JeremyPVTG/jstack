@@ -10,13 +10,13 @@ export const meta = {
   ],
 }
 
-// args: { goal: string, base: string, buildFile?: string, checks?: string[], maxFindings?: number }
-// base and checks come from the repository's build file (docs/agents/build.md or what AGENTS.md names).
+// args: { goal: string, base: string, buildFile?: string, checks?: string[] }
+// goal is one neutral sentence; base, buildFile and checks come from the repository's build file.
+// Fails closed: CLEAN only when every lens ran, every finding was refuted or fixed, and every check passed.
 const goal = (args && args.goal) || 'the change on this branch'
 const base = (args && args.base) || 'origin/main'
 const checks = (args && args.checks) || []
 const buildFile = (args && args.buildFile) || 'the build file AGENTS.md (or CLAUDE.md) names for building'
-const MAX_FINDINGS = (args && args.maxFindings) || 6
 
 const FINDINGS = {
   type: 'object',
@@ -81,68 +81,79 @@ const FIXED = {
   required: ['fixed', 'notFixed', 'checks'],
 }
 
-const scope = `The change under review, in the current directory: \`git diff ${base}...HEAD\` (committed), \`git diff HEAD\` (staged and unstaged), and every untracked file \`git status --short\` lists (read those directly; plain git diff skips them). Its goal: ${goal}. Read the changed files and whatever they call. Report only defects with a concrete failure path; no style or formatting notes. Return an empty list when you find nothing real.`
+const skill = (mode) => `Load the j-review skill and follow it in ${mode} mode. The repository's build file is ${buildFile}; read it.`
+const scope = `${skill('assess')}\n\nThe change under review, in the current directory: \`git diff ${base}...HEAD\` (committed), \`git diff HEAD\` (staged and unstaged), and every untracked file \`git status --short\` lists (read those directly; plain git diff skips them). Its goal: ${goal}. Read the changed files and whatever they call. Report only defects with a concrete failure path; no style or formatting notes. Return an empty list when you find nothing real.`
 
 const LENSES = [
   { key: 'correctness', prompt: `${scope}\n\nLens: correctness. Wrong results, crashes, resource leaks, races, error paths that leave state behind, contract mismatches with the caller (read the caller's code, not just the docs).` },
-  { key: 'rules', prompt: `${scope}\n\nLens: the repository's own rules. Read AGENTS.md (or CLAUDE.md), ${buildFile}, and any principles or decision records they point to. Report changes that break those rules, or that contradict a recorded decision without adding a new decision record.` },
+  { key: 'rules', prompt: `${scope}\n\nLens: the repository's own rules. Read AGENTS.md (or CLAUDE.md), the build file, and any principles or decision records they point to. Report changes that break those rules, or that contradict a recorded decision without adding a new decision record.` },
   { key: 'tests', prompt: `${scope}\n\nLens: tests. Behaviour the change adds that no test exercises, tests that pass for the wrong reason, timing races in tests, fakes that diverge from the real interface they stand in for.` },
 ]
 
+const describe = (f, i) => `${i}. (${f.severity}) ${f.file}:${f.line || '?'}: ${f.claim}. Failure: ${f.failure}`
+
 phase('Review')
 const reviews = await parallel(LENSES.map((lens) => () => agent(lens.prompt, { label: `review:${lens.key}`, phase: 'Review', schema: FINDINGS })))
+const failedLenses = LENSES.filter((_, i) => !reviews[i]).map((l) => l.key)
+if (failedLenses.length) log(`Lens(es) that returned nothing: ${failedLenses.join(', ')}. The verdict cannot be CLEAN.`)
 const all = reviews.filter(Boolean).flatMap((r) => r.findings)
 if (all.length === 0) {
-  log('No findings from any lens.')
-  return { verdict: 'CLEAN', confirmed: [], refuted: [], unverified: [], fix: null }
+  return { verdict: failedLenses.length ? 'FINDINGS' : 'CLEAN', failedLenses, confirmed: [], refuted: [], unverified: [], fix: null }
 }
 
 phase('Merge')
 const order = { high: 0, medium: 1, low: 2 }
 let merged = all.map((f, i) => ({ ...f, members: [i] }))
 if (all.length > 1) {
-  const listing = all.map((f, i) => `${i}. (${f.severity}) ${f.file}:${f.line || '?'}: ${f.claim}. Failure: ${f.failure}`).join('\n')
   const grouping = await agent(
-    `These review findings came from separate reviewers of one change. Group the ones that share a root cause, meaning one fix would resolve them all, even when worded or located differently. Every index appears in exactly one group; a finding with no duplicate is its own group. For each group pick the representative with the clearest failure path.\n\n${listing}`,
+    `These review findings came from separate reviewers of one change. Group the ones that share a root cause, meaning one fix would resolve them all, even when worded or located differently. Every index appears in exactly one group; a finding with no duplicate is its own group. For each group pick the representative with the clearest failure path.\n\n${all.map(describe).join('\n')}`,
     { label: 'merge', phase: 'Merge', schema: GROUPS },
   )
-  if (grouping && grouping.groups && grouping.groups.length) {
-    merged = grouping.groups.map((g) => {
-      const members = g.members.filter((i) => all[i])
-      const top = members.map((i) => all[i]).sort((a, b) => order[a.severity] - order[b.severity])[0] || all[g.representative]
-      return { ...(all[g.representative] || top), severity: top.severity, rootCause: g.rootCause, members }
+  // Accept the grouping only if it is an exact partition of every index with a representative inside each group.
+  const groups = grouping && grouping.groups ? grouping.groups : []
+  const seen = groups.flatMap((g) => g.members)
+  const exact = seen.length === all.length && new Set(seen).size === all.length && seen.every((i) => all[i]) &&
+    groups.every((g) => g.members.includes(g.representative))
+  if (exact) {
+    merged = groups.map((g) => {
+      const top = g.members.map((i) => all[i]).sort((a, b) => order[a.severity] - order[b.severity])[0]
+      return { ...all[g.representative], severity: top.severity, rootCause: g.rootCause, members: g.members }
     })
+  } else {
+    log('Merge did not cover every finding exactly once; verifying each finding on its own.')
   }
 }
 if (all.length > merged.length) log(`${all.length} findings merged into ${merged.length} by root cause.`)
 merged.sort((a, b) => order[a.severity] - order[b.severity])
-const picked = merged.slice(0, MAX_FINDINGS)
-if (merged.length > picked.length) log(`Verifying the ${picked.length} most severe of ${merged.length}; the rest are returned unverified.`)
 
 phase('Verify')
 const judged = await parallel(
-  picked.map((f, i) => () =>
+  merged.map((f, i) => () =>
     agent(
-      `Try to refute this review finding about the change in the current directory (diff against ${base}). Read the code yourself. Set refuted=true unless you can trace the failure path in the code; also refute it if it is already handled or lies outside the change.\n\nFinding (${f.severity}) at ${f.file}:${f.line || '?'}: ${f.claim}\nClaimed failure: ${f.failure}`,
+      `${skill('confirm')}\n\nTry to refute this review finding about the change in the current directory (diff against ${base}). Read the code yourself. Set refuted=true unless you can trace the failure path in the code; also refute it if it is already handled or lies outside the change.\n\nFinding (${f.severity}) at ${f.file}:${f.line || '?'}: ${f.claim}\nClaimed failure: ${f.failure}`,
       { label: `verify:${i + 1}`, phase: 'Verify', schema: VERDICT },
-    ).then((v) => ({ ...f, verdict: v })),
+    ).then((v) => (v ? { ...f, verdict: v } : null)),
   ),
 )
-const decided = judged.filter(Boolean)
+const decided = merged.map((f, i) => judged[i] || { ...f, verdict: null })
 const confirmed = decided.filter((f) => f.verdict && !f.verdict.refuted)
 const refuted = decided.filter((f) => f.verdict && f.verdict.refuted)
-const unverified = merged.slice(MAX_FINDINGS)
+const unverified = decided.filter((f) => !f.verdict)
+if (unverified.length) log(`${unverified.length} finding(s) got no refuter verdict. The verdict cannot be CLEAN.`)
+const incomplete = failedLenses.length > 0 || unverified.length > 0
 if (confirmed.length === 0) {
-  log('Every merged finding was refuted.')
-  return { verdict: 'CLEAN', confirmed, refuted, unverified, fix: null }
+  return { verdict: incomplete ? 'FINDINGS' : 'CLEAN', failedLenses, confirmed, refuted, unverified, fix: null }
 }
 
 phase('Fix')
-const list = confirmed.map((f, i) => `${i + 1}. (${f.severity}) ${f.file}:${f.line || '?'}: ${f.claim}. Failure: ${f.failure}`).join('\n')
 const checkLines = checks.length ? checks.map((c) => `- ${c}`).join('\n') : '- (none given: run the tests for the files you change, one suite at a time)'
 const fix = await agent(
-  `Fix these confirmed review findings in the current directory, with the smallest change each, and add or adjust a test for each where practical. Do not commit or push. Follow the repository build file's rules for where and how to run checks.\n\nFindings:\n${list}\n\nThen run these checks and report each result with the last lines of its output. Read each command's exit status; do not pipe output through tail or head without set -o pipefail:\n${checkLines}`,
+  `${skill('fix')}\n\nFix these confirmed review findings in the current directory, with the smallest change each, and add or adjust a test for each where practical. Do not commit or push. Follow the build file's rules for where and how to run checks.\n\nFindings:\n${confirmed.map((f, i) => describe(f, i + 1)).join('\n')}\n\nThen run these checks and report each result with the last lines of its output, using the exact command text below. Read each command's exit status; do not pipe output through tail or head without set -o pipefail:\n${checkLines}`,
   { label: 'fix', phase: 'Fix', schema: FIXED },
 )
-const checksPass = fix && fix.checks.every((c) => c.passed) && fix.notFixed.length === 0
-return { verdict: checksPass ? 'CLEAN' : 'FINDINGS', confirmed, refuted, unverified, fix }
+// Every requested check needs a passing result; with none requested, at least one check must have run and passed.
+const ran = fix ? fix.checks : []
+const checksPass = ran.length > 0 && ran.every((c) => c.passed) &&
+  checks.every((cmd) => ran.some((c) => c.command.trim() === cmd.trim() && c.passed))
+const clean = !incomplete && Boolean(fix) && fix.notFixed.length === 0 && checksPass
+return { verdict: clean ? 'CLEAN' : 'FINDINGS', failedLenses, confirmed, refuted, unverified, fix }

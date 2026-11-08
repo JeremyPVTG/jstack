@@ -15,7 +15,7 @@ Every run, at every size:
 
 ## Size the task
 
-- **Small:** one clear change whose cause is already known, no money, data, auth or gated files. Build, review, verify, report.
+- **Small:** one clear change whose cause is already known, no money, data, auth or gated files. Build, review, verify, publish if the brief asks for a PR, report.
 - **Standard:** everything else. All stages.
 - **Risky:** touches money, user data, auth, secrets, migrations, or files the build file marks as gated. All stages; ask before building.
 
@@ -49,7 +49,7 @@ Exit: the owner's go-ahead for small and standard work is the brief itself unles
 
 ## 3. Build
 
-Branch from the base the build file names; never commit to it. Make the smallest change that reaches the goal, with tests that use stand-ins only where the real thing is unavailable. Docs: what exists now in the owning README, why in a decision record. Avoid touching files that would trigger unrelated heavy checks unless the change needs them.
+Branch from the base the build file names; never commit to it. Make the smallest change that reaches the goal, with tests that use stand-ins only where the real thing is unavailable.
 
 Exit: it compiles, lints, and its own tests pass.
 
@@ -57,7 +57,7 @@ Exit: it compiles, lints, and its own tests pass.
 
 Three fresh reviewers, each told only the diff, the brief and the build file's path, never your conclusions: correctness, the repo's rules, tests. Findings are merged by root cause, then each is refuted independently; only confirmed ones are fixed; the result ends with a verdict, CLEAN or FINDINGS. Each lens is j-review in assess mode; each refutation is j-review in confirm mode. For Small or docs-only work you may check the findings yourself instead of with separate refuters; say so in the report. [How](references/review.md).
 
-Exit: verdict CLEAN, or every confirmed high and medium finding fixed and the checks re-run.
+Exit: `VERDICT: CLEAN`, meaning every lens ran, every finding was refuted or fixed, and the checks passed after the fixes.
 
 ## 5. Verify
 
@@ -71,4 +71,4 @@ Use j-deliver: commit and push with hooks on (never skip them), open a draft PR 
 
 ## 7. Report
 
-Lead with the answer. Then: root cause, what changed, what ran where and its result, PR link and head commit, check state, what was not verified, and the owner's next actions as a numbered list, or "Nothing needed from you".
+Lead with the answer. For Small work, at most five lines: the answer, what changed, which check ran at which commit and its result, then the next actions. Otherwise: root cause, what changed, what ran where and its result, PR link and head commit, check state, what was not verified, and the owner's next actions as a numbered list, or "Nothing needed from you".
