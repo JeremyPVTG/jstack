@@ -42,6 +42,11 @@ class Main(unittest.TestCase):
         code, out, err, _ = run("Is Bun stable enough for cron jobs?", error=TimeoutError())
         self.assertEqual((code, out), (0, ""))
         self.assertIn("classifier failed", err)
+    def test_skips_host_delivered_results_and_notices(self):
+        for prompt in ("Delegated task node:abc (Smoke 1) [completed]:\nThe current LTS is 26.", "<task-notification>\n<task-id>x</task-id>", "[SYSTEM NOTIFICATION - NOT USER INPUT] background task done"):
+            _, out, _, judge = run(prompt, answers(changing=0.95))
+            self.assertEqual(out, ""); judge.assert_not_called()
+
     def test_skips_slash_commands_short_prompts_and_missing_key(self):
         for prompt in ("/review", "ok thanks"):
             _, out, _, judge = run(prompt, answers(build=0.9))
