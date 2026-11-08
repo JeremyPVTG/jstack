@@ -113,8 +113,7 @@ class CommitsTest(unittest.TestCase):
         git(tools, 'merge', '-q', '--no-ff', '-m', 'Merge pull request #13', 'merged-pr',
             when='2026-11-07T13:00:00-08:00', email=noreply)
         git(tools, 'switch', '-q', '-c', 'feature')
-        self.commit(tools, 'Work in progress on a PR branch', noreply)
-        git(tools, 'switch', '-q', 'main')
+        self.commit(tools, 'Work in progress on a PR branch', noreply)  # left checked out
         repos = cd.commits([str(self.root)], START, END, [noreply])['repos']
         self.assertEqual(repos, [{'repo': 'me/tools', 'count': 1, 'subjects': ['Pushed straight to main']}])
 

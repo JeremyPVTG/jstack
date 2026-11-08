@@ -19,7 +19,8 @@ class LeakCheckTest(unittest.TestCase):
         joined = '\n'.join(hits)
         self.assertIn('email address: bob@example.com', joined)
         self.assertIn('local path: /Users/me/notes.md', joined)
-        self.assertIn('repo name: acme/secret-app', joined)
+        self.assertIn('repo name: secret-app', joined)
+        self.assertNotIn('acme', joined)
         self.assertIn('deny list: hillside farm', joined)
         self.assertNotIn('me/tools', joined)
 

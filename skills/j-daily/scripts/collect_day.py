@@ -164,6 +164,17 @@ def author_emails(extra):
     return sorted(email for email in emails if email)
 
 
+def default_branch(repo):
+    for ref in ('refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master',
+                'refs/heads/main', 'refs/heads/master'):
+        try:
+            run(['git', 'rev-parse', '--verify', '-q', ref], cwd=repo)
+            return ref
+        except subprocess.CalledProcessError:
+            pass
+    return None
+
+
 def commits(roots, start, end, emails):
     """Your commits pushed straight to each repo's default branch. PR work is left out: only the
     first-parent line is read (so a merged branch's commits are skipped), and squash merges
@@ -174,11 +185,9 @@ def commits(roots, start, end, emails):
     found = []
     for repo in local_repos(roots):
         name = remote_name(repo)
-        try:
-            run(['git', 'rev-parse', '--verify', '-q', 'refs/remotes/origin/HEAD'], cwd=repo)
-            branch = 'origin/HEAD'
-        except subprocess.CalledProcessError:
-            branch = 'HEAD'
+        branch = default_branch(repo)
+        if not branch:  # never guess from the checked-out branch: it may hold unpushed PR work
+            continue
         try:
             out = run(['git', 'log', branch, '--first-parent', '--no-merges', f'--since={start.isoformat()}',
                        *authors, '--format=%cI%x1f%s'], cwd=repo)

@@ -52,9 +52,10 @@ def check(text, day=None, deny=()):
     hits += [f'email address: {match}' for match in sorted(set(EMAIL.findall(text)))]
     hits += [f'local path: {match}' for match in sorted(set(HOME_PATH.findall(text)))]
     lowered = text.lower()
-    for name in repo_names(day or {}):
-        if name.lower() in lowered or name.split('/')[-1].lower() in lowered:
-            hits.append(f'repo name: {name} (fine if the repo is public)')
+    for name in repo_names(day or {}):  # report only what the draft already says, never the full name
+        found = next((term for term in (name, name.split('/')[-1]) if term.lower() in lowered), None)
+        if found:
+            hits.append(f'repo name: {found} (fine if the repo is public)')
     hits += [f'deny list: {term}' for term in deny if term.lower() in lowered]
     return hits
 
