@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { captureText, capturePath, lint, logLine, search, skills, untar, wikiProblems, writablePath, type Files } from "../src/vault";
+import { captureText, capturePath, lint, listField, logLine, search, skills, untar, wikiProblems, writablePath, type Files } from "../src/vault";
 
 const page = (title: string, body = "", type = "topic", reviewed = "2026-11-01", volatility = "medium") =>
   `---\ntype: ${type}\nreviewed: ${reviewed}\nvolatility: ${volatility}\nsources:\n  - "[[raw/2026-11/2026-11-01 source]]"\n---\n\n# ${title}\n\n${body}\n`;
@@ -73,6 +73,34 @@ describe("lint", () => {
   });
 });
 
+describe("typed links", () => {
+  const typed = (title: string, key: string, target: string, body = "") =>
+    `---\ntype: topic\nreviewed: 2026-11-01\nvolatility: medium\nsources:\n  - "[[raw/2026-11/2026-11-01 source]]"\n${key}:\n  - "[[${target}]]"\n---\n\n# ${title}\n\n${body}\n`;
+
+  it("reads list fields from frontmatter", () => {
+    expect(listField(typed("New", "supersedes", "Old"), "supersedes")).toEqual(["Old"]);
+    expect(listField(typed("New", "supersedes", "Old"), "contradicts")).toEqual([]);
+  });
+
+  it("requires a superseded page to link its successor and warns on unacknowledged contradictions", () => {
+    const files = { ...base(), "index.md": "- [[Old]]\n- [[New]]\n- [[Other]]\n", "wiki/Old.md": page("Old"), "wiki/New.md": typed("New", "supersedes", "Old"), "wiki/Other.md": typed("Other", "contradicts", "Old") };
+    const { errors, warnings } = lint(files, today);
+    expect(errors).toContain("wiki/Old: superseded by [[New]]; link to it");
+    expect(warnings.join("\n")).toMatch(/wiki\/Old: contradicted by \[\[Other\]\]/);
+    const fixed = { ...files, "wiki/Old.md": page("Old", "Replaced by [[New]]. Disputed in [[Other]].") };
+    expect(lint(fixed, today).errors).toEqual([]);
+  });
+
+  it("flags stale and superseded hits and ranks them down", () => {
+    const files = { ...base(), "wiki/Old CI.md": page("Old CI", "ci runners cost", "topic", "2026-01-01", "high"), "wiki/New CI.md": typed("New CI", "supersedes", "Old CI", "ci runners cost") };
+    const hits = search(files, "ci runners", 8, today);
+    expect(hits[0].path).toBe("wiki/New CI.md");
+    const old = hits.find((h) => h.path === "wiki/Old CI.md")!;
+    expect(old.stale).toBe(true);
+    expect(old.superseded_by).toEqual(["New CI"]);
+  });
+});
+
 describe("search", () => {
   it("ranks the page about the query first and prefers wiki pages", () => {
     const files = { ...base(), "wiki/LLM wiki maintenance.md": page("LLM wiki maintenance", "Lint with a script; stale pages mislead."), "wiki/Other.md": page("Other", "Something about cattle gait.") };
@@ -107,6 +135,7 @@ describe("writes", () => {
 
   it("formats greppable log lines", () => {
     expect(logLine("research", "Question\nmore", ["A", "B]]"], "2026-11-07")).toBe("## [2026-11-07] research | Question more | pages: [[A]], [[B]]");
+    expect(logLine("research", "Q", ["A"], "2026-11-07", "~$0.12 <b>")).toBe("## [2026-11-07] research | Q | pages: [[A]] | spend: ~$0.12 b");
     expect(() => logLine("delete", "", [], "2026-11-07")).toThrow();
   });
 });

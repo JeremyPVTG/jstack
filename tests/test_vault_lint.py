@@ -79,6 +79,19 @@ class VaultLintTest(unittest.TestCase):
         code, out = self.run_lint()
         self.assertEqual(code, 0, out)
 
+    def test_typed_links(self):
+        typed = lambda title, key, target, body='': f'---\ntype: topic\nreviewed: 2026-11-01\nvolatility: medium\nsources:\n  - "[[raw/2026-11/2026-11-01 source]]"\n{key}:\n  - "[[{target}]]"\n---\n# {title}\n{body}\n'
+        (self.vault / 'index.md').write_text('- [[Old]]\n- [[New]]\n- [[Other]]\n')
+        (self.vault / 'wiki' / 'Old.md').write_text(PAGE.format(type='topic', reviewed='2026-11-01', volatility='medium', title='Old', body=''))
+        (self.vault / 'wiki' / 'New.md').write_text(typed('New', 'supersedes', 'Old'))
+        (self.vault / 'wiki' / 'Other.md').write_text(typed('Other', 'contradicts', 'Old'))
+        code, out = self.run_lint()
+        self.assertEqual(code, 1)
+        self.assertIn('ERROR wiki/Old: superseded by [[New]]; link to it', out)
+        self.assertIn('WARN  wiki/Old: contradicted by [[Other]]', out)
+        (self.vault / 'wiki' / 'Old.md').write_text(PAGE.format(type='topic', reviewed='2026-11-01', volatility='medium', title='Old', body='Replaced by [[New]]; disputed in [[Other]].'))
+        self.assertNotIn('superseded by', self.run_lint()[1])
+
 
 if __name__ == '__main__':
     unittest.main()

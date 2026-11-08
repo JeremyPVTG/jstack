@@ -51,6 +51,22 @@ export function frontmatter(text: string): Record<string, string> | null {
   return fields;
 }
 
+/** Wikilink targets listed under a frontmatter key, e.g. supersedes: then "  - \"[[Old page]]\"" lines. */
+export function listField(text: string, key: string): string[] {
+  if (!text.startsWith("---\n")) return [];
+  const end = text.indexOf("\n---", 4);
+  const lines = text.slice(4, end < 0 ? 4 : end).split("\n");
+  const start = lines.findIndex((line) => line.startsWith(`${key}:`));
+  if (start < 0) return [];
+  const out: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!/^\s+-/.test(line)) break;
+    const match = line.match(/\[\[([^\[\]|#]+)/);
+    if (match) out.push(match[1].trim());
+  }
+  return out;
+}
+
 const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
 const days = (from: string, to: Date) => Math.floor((to.getTime() - Date.parse(from)) / 86_400_000);
 
@@ -83,13 +99,17 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
     return byPath.get(key) ?? (key.includes("/") ? undefined : byName.get(key));
   };
   const inbound = new Map<string, Set<string>>();
+  const outbound = new Map<string, Set<string>>();
   for (const path of notes) {
     const rel = path.slice(0, -3);
     const text = files[path];
     for (const [, target] of text.replace(CODE, "").matchAll(LINK)) {
       const found = resolve(target);
       if (!found) errors.push(`${rel}: broken link [[${target}]]`);
-      else if (found !== rel) inbound.set(found, (inbound.get(found) ?? new Set()).add(rel));
+      else if (found !== rel) {
+        inbound.set(found, (inbound.get(found) ?? new Set()).add(rel));
+        outbound.set(rel, (outbound.get(rel) ?? new Set()).add(found));
+      }
     }
     if (rel.startsWith("wiki/")) {
       const problems = wikiProblems(text);
@@ -104,6 +124,16 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
       if (missing.length) errors.push(`${rel}: missing frontmatter ${missing.join(", ")}`);
     }
   }
+  for (const path of notes.filter((p) => p.startsWith("wiki/"))) {
+    const rel = path.slice(0, -3);
+    for (const [key, severe] of [["supersedes", true], ["contradicts", false]] as const) {
+      for (const target of listField(files[path], key)) {
+        const other = resolve(target);
+        if (!other || other === rel) continue;
+        if (!outbound.get(other)?.has(rel)) (severe ? errors : warnings).push(`${other}: ${key === "supersedes" ? `superseded by [[${rel.split("/").pop()}]]; link to it` : `contradicted by [[${rel.split("/").pop()}]]; link to it under Contradictions`}`);
+      }
+    }
+  }
   for (const rel of [...byPath.values()].filter((r) => r.startsWith("wiki/")).sort()) {
     const from = inbound.get(rel) ?? new Set();
     if (!from.has("index")) errors.push(`${rel}: not listed in index.md`);
@@ -114,10 +144,10 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
 
 const tokens = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 
-export type Hit = { path: string; title: string; type: string; reviewed: string; snippet: string; score: number };
+export type Hit = { path: string; title: string; type: string; reviewed: string; stale?: true; superseded_by?: string[]; snippet: string; score: number };
 
-/** BM25 over the vault's Markdown, title words weighted, wiki pages slightly preferred over raw captures. */
-export function search(files: Files, query: string, limit = 8): Hit[] {
+/** BM25 over the vault's Markdown, title words weighted, wiki pages ranked above raw captures, superseded pages demoted. Hits flag stale and superseded pages. */
+export function search(files: Files, query: string, limit = 8, today = new Date()): Hit[] {
   const terms = [...new Set(tokens(query))];
   if (!terms.length) return [];
   const docs = Object.entries(files)
@@ -131,6 +161,14 @@ export function search(files: Files, query: string, limit = 8): Hit[] {
     });
   const average = docs.reduce((sum, doc) => sum + doc.length, 0) / Math.max(docs.length, 1);
   const df = new Map(terms.map((term) => [term, docs.filter((doc) => doc.counts.has(term)).length]));
+  const successors = new Map<string, string[]>();
+  for (const [path, text] of Object.entries(files)) {
+    if (!path.startsWith("wiki/")) continue;
+    for (const target of listField(text, "supersedes")) {
+      const key = target.toLowerCase();
+      successors.set(key, [...(successors.get(key) ?? []), path.slice(5, -3)]);
+    }
+  }
   const k1 = 1.2;
   const b = 0.75;
   return docs
@@ -142,12 +180,16 @@ export function search(files: Files, query: string, limit = 8): Hit[] {
         const idf = Math.log(1 + (docs.length - df.get(term)! + 0.5) / (df.get(term)! + 0.5));
         score += (idf * tf * (k1 + 1)) / (tf + k1 * (1 - b + (b * doc.length) / average));
       }
-      if (doc.path.startsWith("wiki/")) score *= 1.2;
       const fields = frontmatter(doc.text) ?? {};
+      const wiki = doc.path.startsWith("wiki/");
+      const superseded = wiki ? successors.get(doc.path.slice(5, -3).toLowerCase()) : undefined;
+      const stale = wiki && isDate(fields.reviewed ?? "") && fields.volatility in WINDOWS && days(fields.reviewed, today) > WINDOWS[fields.volatility];
+      if (wiki) score *= 1.5;
+      if (superseded) score *= 0.5;
       const body = doc.text.replace(/^---\n[\s\S]*?\n---\n/, "");
       const at = terms.map((term) => body.toLowerCase().indexOf(term)).filter((i) => i >= 0).sort((x, y) => x - y)[0] ?? 0;
       const snippet = body.slice(Math.max(0, at - 80), at + 220).replace(/\s+/g, " ").trim();
-      return { path: doc.path, title: doc.title, type: fields.type ?? (doc.path.startsWith("raw/") ? "source" : ""), reviewed: fields.reviewed ?? fields.captured ?? "", snippet, score: Math.round(score * 100) / 100 };
+      return { path: doc.path, title: doc.title, type: fields.type ?? (doc.path.startsWith("raw/") ? "source" : ""), reviewed: fields.reviewed ?? fields.captured ?? "", ...(stale ? { stale: true as const } : {}), ...(superseded ? { superseded_by: superseded } : {}), snippet, score: Math.round(score * 100) / 100 };
     })
     .filter((hit) => hit.score > 0)
     .sort((x, y) => y.score - x.score)
@@ -190,11 +232,12 @@ export function captureText(capture: Capture, today: string): string {
   ].join("\n");
 }
 
-export function logLine(kind: string, summary: string, pages: string[], today: string): string {
+export function logLine(kind: string, summary: string, pages: string[], today: string, spend?: string): string {
   if (!["research", "ingest", "lint"].includes(kind)) throw new Error("kind must be research, ingest, or lint");
   const text = summary.replace(/[\r\n]+/g, " ").trim();
   const links = pages.map((page) => `[[${page.replace(/[[\]]/g, "")}]]`).join(", ");
-  return `## [${today}] ${kind} | ${text}${links ? ` | pages: ${links}` : ""}`;
+  const cost = (spend ?? "").replace(/[^\w$.~ -]/g, "").trim().slice(0, 24);
+  return `## [${today}] ${kind} | ${text}${links ? ` | pages: ${links}` : ""}${cost ? ` | spend: ${cost}` : ""}`;
 }
 
 export type Skill = { name: string; description: string; files: string[] };
