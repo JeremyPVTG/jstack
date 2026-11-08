@@ -164,15 +164,24 @@ def author_emails(extra):
     return sorted(email for email in emails if email)
 
 
-def default_branch(repo):
-    for ref in ('refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master',
-                'refs/heads/main', 'refs/heads/master'):
+def default_branches(repo):
+    """The remote default branch plus its local counterpart (for commits not yet pushed),
+    or local main/master when there is no remote one. Never the checked-out feature branch."""
+    def exists(ref):
         try:
             run(['git', 'rev-parse', '--verify', '-q', ref], cwd=repo)
-            return ref
+            return True
         except subprocess.CalledProcessError:
-            pass
-    return None
+            return False
+    for remote in ('refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master'):
+        if exists(remote):
+            short = run(['git', 'rev-parse', '--abbrev-ref', remote], cwd=repo).strip()  # e.g. origin/main
+            local = 'refs/heads/' + short.split('/', 1)[-1]
+            return [remote] + ([local] if exists(local) else [])
+    for local in ('refs/heads/main', 'refs/heads/master'):
+        if exists(local):
+            return [local]
+    return []
 
 
 def commits(roots, start, end, emails):
@@ -185,11 +194,11 @@ def commits(roots, start, end, emails):
     found = []
     for repo in local_repos(roots):
         name = remote_name(repo)
-        branch = default_branch(repo)
-        if not branch:  # never guess from the checked-out branch: it may hold unpushed PR work
+        branches = default_branches(repo)
+        if not branches:
             continue
         try:
-            out = run(['git', 'log', branch, '--first-parent', '--no-merges', f'--since={start.isoformat()}',
+            out = run(['git', 'log', *branches, '--first-parent', '--no-merges', f'--since={start.isoformat()}',
                        *authors, '--format=%cI%x1f%s'], cwd=repo)
         except subprocess.CalledProcessError:
             continue

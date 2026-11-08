@@ -118,6 +118,24 @@ class CommitsTest(unittest.TestCase):
         self.assertEqual(repos, [{'repo': 'me/tools', 'count': 1, 'subjects': ['Pushed straight to main']}])
 
 
+    def test_a_clone_counts_unpushed_commits_on_its_default_branch(self):
+        noreply = '123+me@users.noreply.github.com'
+        remote = Path(tempfile.mkdtemp())
+        git(remote, 'init', '-q', '--bare', '-b', 'main')
+        seed = new_repo()
+        (seed / 'f').write_text('seed')
+        git(seed, 'add', 'f')
+        git(seed, 'commit', '-q', '-m', 'Pushed earlier', when='2026-11-07T09:00:00-08:00', email=noreply)
+        git(seed, 'push', '-q', str(remote), 'main')
+        git(self.root, 'clone', '-q', str(remote), 'app')
+        app = self.root / 'app'
+        self.commit(app, 'Not pushed yet', noreply)
+        git(app, 'switch', '-q', '-c', 'feature')
+        self.commit(app, 'Feature work', noreply)
+        repos = cd.commits([str(self.root)], START, END, [noreply])['repos']
+        self.assertEqual(repos[0]['subjects'], ['Not pushed yet', 'Pushed earlier'])
+
+
 class T3Test(unittest.TestCase):
     def setUp(self):
         self.db = Path(tempfile.mkdtemp()) / 'state.sqlite'
