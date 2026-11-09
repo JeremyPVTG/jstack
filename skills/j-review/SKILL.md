@@ -1,6 +1,6 @@
 ---
 name: j-review
-description: Use this skill to review a code change and give a verdict, to confirm whether earlier findings are fixed (or refute a new one), to fix supplied findings, or to triage review comments and bot findings on a pull request into fix, dismiss or ask. Use when a brief says review, judge, red team, confirm the fixes, fix round N, address the review comments, or act as the review sub-agent.
+description: Use this skill to review a code change and give a verdict, to confirm whether earlier findings are fixed (or refute a new one), to fix supplied findings, or to triage review comments and bot findings on a pull request into fix, dismiss or ask. Use when a brief says review, judge, red team, confirm the fixes, fix round N, fix the nits, fix every finding, address the review comments, or act as the review sub-agent.
 ---
 
 # Review a change

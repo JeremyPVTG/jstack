@@ -70,6 +70,18 @@
           "url": "https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/show-me-your-work/SKILL.md",
           "sha256": "920a8217cbb62f92a2222fb81fc9eab17ecd554a0277e444a95a927195139bd1",
           "inspection": "entrypoint fetched and hashed; selected content inspected; runtime/dependency compatibility not certified"
+        },
+        {
+          "path": "pstack/skills/create-verification-skill/SKILL.md",
+          "url": "https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/create-verification-skill/SKILL.md",
+          "sha256": "d353973547bf8ad8977eca645f4cd4feaed0d32f4b43d1448f906b0a76c4d694",
+          "inspection": "entrypoint fetched and hashed; read in full 2026-11-08; recommended for repo verify skills; writes .cursor/skills/verify-<app>/, so on other hosts point it at the repo's skill folder; runtime compatibility not certified"
+        },
+        {
+          "path": "pstack/skills/maintain-verification-skill/SKILL.md",
+          "url": "https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/maintain-verification-skill/SKILL.md",
+          "sha256": "515c0eaa054b3f6be1b1fb06f2c2f173c80fddb58bbcac57576f89c479bc68e8",
+          "inspection": "entrypoint fetched and hashed; read in full 2026-11-08; recommended for repo verify skills; writes .cursor/skills/verify-<app>/, so on other hosts point it at the repo's skill folder; runtime compatibility not certified"
         }
       ]
     }
