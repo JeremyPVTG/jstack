@@ -1,6 +1,6 @@
 # Classify a failing check before acting
 
-Run `git fetch origin` first. Read the failed job's log for the current head (`gh run view <id> --log-failed`) and place the failure in one class:
+Run `git fetch origin` first. Read the failed job's log for the current head (`gh run view <id> --log-failed`) and place the failure in one class. Only the base branch's required checks block (`gh api repos/<owner>/<repo>/rules/branches/<base>` lists them); report a failing optional or cancelled check, but do not classify it as a flake or fix it.
 
 | Class | Signs | Action |
 |---|---|---|
@@ -9,6 +9,7 @@ Run `git fetch origin` first. Read the failed job's log for the current head (`g
 | **Base is red too** | The same failure shows on the base's latest run. | Not this PR's defect: report it and change nothing on the branch. |
 | **Flake or infrastructure** | Timeouts, network errors, runner or service outages, a test known to be intermittent, or the same check passing on an earlier identical commit. | One fresh run of the whole workflow, never a job-level retry loop. An identical second failure means it is not a flake: classify it again. |
 | **Budget or policy** | A size budget, coverage floor, ratchet or policy check. | Fix the code to meet it. Changing the budget or baseline is the owner's decision; flag it. |
+| **Approval gate** | The check fails only because an approval it names is missing (a risk tier, a release manager's sign-off). | Not a defect: change nothing and report the exact approval needed and the head it must cover. |
 | **Environment** | It only fails because a tool or credential is missing where you ran it. | Not a defect in the change; run it where the build file says, or report what is missing. |
 
 Many CI systems test the PR merged with the current base, so a failure in untouched code there often means the base itself is red. Check the base's own run before changing anything. If the log does not settle the class, say which classes remain and what would tell them apart.
