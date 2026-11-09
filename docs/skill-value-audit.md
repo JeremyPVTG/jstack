@@ -2,6 +2,8 @@
 
 Scope: the five owned jstack skills, their references, pack membership, and duplication with the T3 instructions available during this audit. Upstream collections and the full installed personal skill library are outside this pass.
 
+Snapshot: this first pass covered five skills. [INDEX.md](../INDEX.md) lists the current set, and the dated sections below record what changed.
+
 Verdict: retain four task-facing skills as candidates and keep the audit skill optional. None has demonstrated incremental model performance yet. Installed usage and historical workflow frequency motivate the candidates; they do not establish that the rewritten skills help.
 
 ## What earns its place

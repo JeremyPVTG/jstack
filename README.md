@@ -10,7 +10,7 @@ Skills and workflows I use in T3 Code, across all models (mostly Opus/Sol). Incl
 | [j-scope](skills/j-scope/SKILL.md) | Drawing the MVP line by questioning you on an honest options brief, and cutting additions that add little | "Use j-scope: how far do we go for the first version?" |
 | [j-evidence](skills/j-evidence/SKILL.md) | Checking completion or public claims against source evidence | "Which of these tasks can we actually mark complete?" |
 
-Engineering pack: [j-review](skills/j-review/SKILL.md) for reviewing changes and [j-deliver](skills/j-deliver/SKILL.md) for publishing, working an open PR through threads and CI, and release readiness. Maintainer pack: [j-skill-audit](skills/j-skill-audit/SKILL.md). Personal pack: [j-bookmarks](skills/j-bookmarks/SKILL.md), a weekly triage of saved X posts into a ledger in the research vault, so every bookmark ends up researched, queued, or ignored with a link to the decision. And [j-daily](skills/j-daily/SKILL.md), which gathers a day's research, pull requests, commits and agent conversations and opens a draft daily-log PR with questions for you to answer; you write the take.
+Engineering pack: [j-build](skills/j-build/SKILL.md) for taking a fix or feature from brief to a verified draft PR in stages, [j-review](skills/j-review/SKILL.md) for reviewing changes and [j-deliver](skills/j-deliver/SKILL.md) for publishing, working an open PR through threads and CI, and release readiness. Maintainer pack: [j-skill-audit](skills/j-skill-audit/SKILL.md). Personal pack: [j-bookmarks](skills/j-bookmarks/SKILL.md), a weekly triage of saved X posts into a ledger in the research vault, so every bookmark ends up researched, queued, or ignored with a link to the decision. And [j-daily](skills/j-daily/SKILL.md), which gathers a day's research, pull requests, commits and agent conversations and opens a draft daily-log PR with questions for you to answer; you write the take.
 
 ### My research loop
 
@@ -30,7 +30,7 @@ python3 scripts/install.py install --target ~/.claude/skills --dry-run
 python3 scripts/install.py install --target ~/.claude/skills
 ```
 
-Choose your agent's actual skills directory explicitly. The default core pack installs j-research, j-scope, and j-evidence. Use `--pack engineering` for j-review and j-deliver, `--pack maintainer` for j-skill-audit, `--pack personal` for j-bookmarks and j-daily, or repeat `--skill NAME` to select individual skills. [targets.json](targets.json) lists candidate paths; it does not certify discovery support.
+Choose your agent's actual skills directory explicitly. The default core pack installs j-research, j-scope, and j-evidence. Use `--pack engineering` for j-build, j-review and j-deliver, `--pack maintainer` for j-skill-audit, `--pack personal` for j-bookmarks and j-daily, or repeat `--skill NAME` to select individual skills. [targets.json](targets.json) lists candidate paths; it does not certify discovery support.
 
 Existing entries are moved to timestamped backups under `~/.local/state/jstack/`. The installer prints a receipt path. Repeated installs leave matching links alone. It does not alter global rules, agent settings, plugins, or upstream installations.
 
@@ -58,7 +58,7 @@ python3 scripts/check.py
 python3 -m unittest discover -s tests
 ```
 
-Every commit that changes a skill ends with two trailers, adapted from [gstack's write-skill](https://github.com/garrytan/gstack/tree/main/write-skill): `Skill-Size: <before>→<after> bytes (<file>)` from `python3 scripts/check.py --sizes`, and `Evidence:` naming an eval run, a dated plan to measure (`plan <suite> measure_by <date>`), or `safety: <reason>`. A skill grows only with evidence; the default edit is a cut.
+A commit that grows a skill or changes what it tells the agent to do ends with two trailers, adapted from [gstack's write-skill](https://github.com/garrytan/gstack/tree/main/write-skill): `Skill-Size: <before>→<after> bytes (<file>)` from `python3 scripts/check.py --sizes`, and `Evidence:` naming an eval run, a dated plan to measure (`plan <suite> measure_by <date>`), or `safety: <reason>`. Wording fixes and cuts that change no behaviour may leave them out. A skill grows only with evidence; the default edit is a cut.
 
 When adding a skill, give it a specific outcome, keep conditional detail in linked references, add a realistic case to the separate jstack-evals repository, and regenerate INDEX.md with `python3 scripts/check.py --write-index`.
 

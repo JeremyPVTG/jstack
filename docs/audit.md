@@ -1,5 +1,7 @@
 # Initial audit — 2026-11-07
 
+Snapshot of 2026-11-07. The owned set has since grown from four skills to the ones in [INDEX.md](../INDEX.md), and j-review and j-deliver were rebuilt; see [the skill value audit](skill-value-audit.md).
+
 Scope: inventory of top-level personal Codex skills and targeted content inspection of PR, build, research, design-council, machine-limit, and T3 skills. This is not an audit of every system, plugin, AWS, or project skill. Inventory hashes preserve the inspected local snapshot without copying private history into this package.
 
 ## Consolidation decisions

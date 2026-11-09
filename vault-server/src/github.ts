@@ -1,4 +1,4 @@
-import { untar, type Files } from "./vault";
+import { readablePath, untar, type Files } from "./vault";
 
 export type Repo = { slug: string; branch: string; token: string };
 
@@ -70,4 +70,8 @@ export async function writeFile(repo: Repo, path: string, text: string, message:
   return { sha: body.content.sha, commit: body.commit.sha };
 }
 
-const encodePath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
+/** Refuses a path that is not inside the repo: an empty, "." or ".." segment would move the request to another API route or repository. */
+const encodePath = (path: string) => {
+  if (!readablePath(path)) throw new GitHubError(400, "Give a path inside the vault, e.g. 'wiki/Page title.md'.");
+  return path.split("/").map(encodeURIComponent).join("/");
+};
