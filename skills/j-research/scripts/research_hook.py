@@ -19,6 +19,8 @@ Summarise with `research_hook.py --report`.
 Key: TYPESAFE_API_KEY (or EVAL_TYPESAFE_API_KEY under `claude plugin eval`) from the environment, else the macOS keychain item
 `jstack-typesafe` (security add-generic-password -s jstack-typesafe -a "$USER" -w).
 """
+from __future__ import annotations  # macOS ships Python 3.9, which cannot evaluate `str | None` at import
+
 import json
 import os
 import time

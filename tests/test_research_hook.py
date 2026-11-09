@@ -94,5 +94,12 @@ class Log(unittest.TestCase):
         self.assertEqual(json.loads(out.getvalue()), {"prompts": 4, "fired": 3, "labelled": 3, "false_fires": 1, "misses": 1})
 
 
+class OldPython(unittest.TestCase):
+    def test_annotations_are_not_evaluated_at_import(self):
+        # Python 3.9 raises TypeError on `str | None` unless annotations stay strings.
+        self.assertEqual(hook.api_key.__annotations__["return"], "str | None")
+        self.assertEqual(hook.log_path.__annotations__["return"], "Path | None")
+
+
 if __name__ == "__main__":
     unittest.main()

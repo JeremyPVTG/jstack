@@ -262,6 +262,11 @@ export function fuse(files: Files, keyword: Hit[], semantic: Semantic[], limit =
     .slice(0, limit);
 }
 
+/** Paths `read` may fetch: relative, with no empty, `.` or `..` segment. Such a segment would move the GitHub API request outside the vault repo. */
+export function readablePath(path: string): boolean {
+  return path.length > 0 && path.length <= 400 && !path.includes("\\") && path.split("/").every((part) => part !== "" && part !== "." && part !== "..");
+}
+
 /** Where agents may write with write_page: wiki pages and the index. Raw captures and the log have their own tools. */
 export function writablePath(path: string): boolean {
   return path === "index.md" || /^wiki\/[^/\\]+\.md$/.test(path);
