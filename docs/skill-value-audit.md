@@ -28,6 +28,14 @@ j-review and j-deliver were rebuilt to replace the owner's personal pr-* skills 
 
 A jstack j-verify was built twice and dropped twice. The second version (create and maintain a repository's verify skill, plus an independent verdict on base and head) got its verdict right 1 of 3 times on a seeded probe where the author's own check without the skill caught the break 3 of 3 (jstack-evals d119977). Its create mode worked on a real repository, but that design is pstack's. So jstack points at pstack's create-verification-skill and maintain-verification-skill under their own name (pinned in upstreams.lock.json), j-build's Verify stage names them, and j-deliver's readiness takes pstack Shipping's rule: where the build file requires it, a pass from an agent that did not write the change, valid while the patch-id matches. Unmeasured; comes back as a skill only if a live PR shows authors missing breaks that driving the app catches.
 
+## 2026-11-08 dated plans for the unmeasured skills
+
+Three shipped skills have no eval and no dated measurement. Each gets one, and is cut if it misses:
+
+- **j-evidence**, measure by 2026-11-30: from that period's session transcripts, count the runs that loaded it and how many changed a reported status or kept a stated uncertainty that a plain answer would have dropped. Fewer than two such runs: fold its one rule into j-research and retire it.
+- **j-skill-audit**, measure by 2026-11-30: run it once on jstack. Keep it only if it proposes a cut or merge the owner accepts that j-build or the host's skill-authoring guidance had not already found.
+- **j-bookmarks**, measure by 2026-11-30: after three weekly runs, every saved bookmark in that window has a ledger row that is researched, queued or ignored, each with a link. Gaps: revise before its next run.
+
 ## Remaining proof
 
 Run matched baseline/candidate trials on the existing development cases in T3. Include a no-added-skill condition: if T3 and the model already handle a behavior reliably, repeating it in jstack may add no value. Track unnecessary loading, questions, artifacts, tool calls, and cost alongside task success.
