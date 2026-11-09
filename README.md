@@ -1,8 +1,6 @@
 # jstack
 
-Skills and workflows I use in T3 Code, across models. Includes original skills, adaptations, and a short list of tools I recommend.
-
-T3 Code is the primary host. Model choices stay in the session or evaluation configuration; the skills do not hardcode a provider or account. See [T3 integration and pinned upstream source paths](hosts/t3.md).
+Skills and workflows I use in T3 Code, across all models (mostly Opus/Sol). Includes original skills, adaptations, and a short list of tools I'd recommend.
 
 ## Start here
 
@@ -14,15 +12,14 @@ T3 Code is the primary host. Model choices stay in the session or evaluation con
 
 Engineering pack: [j-review](skills/j-review/SKILL.md) for reviewing changes and [j-deliver](skills/j-deliver/SKILL.md) for publishing, working an open PR through threads and CI, and release readiness. Maintainer pack: [j-skill-audit](skills/j-skill-audit/SKILL.md). Personal pack: [j-bookmarks](skills/j-bookmarks/SKILL.md), a weekly triage of saved X posts into a ledger in the research vault, so every bookmark ends up researched, queued, or ignored with a link to the decision. And [j-daily](skills/j-daily/SKILL.md), which gathers a day's research, pull requests, commits and agent conversations and opens a draft daily-log PR with questions for you to answer; you write the take.
 
-### The research loop
+### My research loop
 
 "Use j-research to find a way to build X" runs in two halves. First a landscape pass: what already exists, what practitioners use and regret, and whether you should build at all. j-scope then asks you the few decisions that set the MVP line. j-research then researches implementation inside that line only: official docs, reference code, GitHub issues, Stack Overflow, and practitioner threads and videos, in rounds until a round changes nothing.
 
 Everything decisive is compiled into a research vault following [Karpathy's LLM wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): immutable captured sources, agent-maintained wiki pages with review dates and volatility, an index, and a log. The next run starts from the vault and re-verifies only what has gone stale. Set the path with `J_RESEARCH_VAULT` or `research_vault` in `~/.config/jstack/config.json`; a starter vault is in [skills/j-research/assets/vault](skills/j-research/assets/vault/).
 
-The social lane (Reddit, X, YouTube, Hacker News) depends on [last30days](https://github.com/mvanhorn/last30days-skill). See [the decision record](docs/decisions/0001-research-sources-and-vault.md) for why, and its safety notes.
+The social lane (Reddit, X, YouTube, Hacker News) depends on [last30days](https://github.com/mvanhorn/last30days-skill).
 
-**Status:** installer and structure are tested. The skills' effect on agent behaviour has not been measured yet; behavioural evals live in a separate jstack-evals repository.
 
 ## Install
 
