@@ -1,6 +1,6 @@
 ---
 name: j-deliver
-description: Use this skill to publish a finished change (push the exact commit with hooks on and open or update the PR), to work an open pull request through conflicts, review threads and CI until it is ready, to diagnose and fix a failing check, or to decide whether a PR is ready to merge. Use when a brief says publish, push commit X, test and publish, fix CI, checks failed, babysit the PR, address the review comments on PR N, is PR N ready, or hand off PR N.
+description: Use this skill when a check or CI run fails on a pull request or branch and must go green, to work an open pull request through conflicts, review threads and CI until it is ready, to publish a finished change (push the exact commit with hooks on and open or update the PR), or to decide whether a PR is ready to merge. Use when a brief says checks failed, CI is red, get it green, fix CI, names a failed run, babysit the PR, address the review comments on PR N, publish, push commit X, test and publish, is PR N ready, or hand off PR N.
 ---
 
 # Deliver a change
