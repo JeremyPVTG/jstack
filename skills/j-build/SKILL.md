@@ -61,7 +61,7 @@ Exit: `VERDICT: CLEAN`, meaning every lens ran, every finding was refuted or fix
 
 ## 5. Verify
 
-Run, before pushing, exactly the checks the build file says the push hook and CI run, scoped to the files you changed. Then check each done-criterion on the entry point users actually run (the repo's `verify` skill if it has one), not only tests, and give each a verdict: VERIFIED, NOT VERIFIED, or INCONCLUSIVE when it cannot run here (GPU, credentials). Follow the build file's rules for where heavy work runs. If a hook or check fails for a reason outside the change (a broken local tool), stop and report it; never bypass the hook.
+Run, before pushing, exactly the checks the build file says the push hook and CI run, scoped to the files you changed. Then check each done-criterion on the entry point users actually run (the repo's verify skill if it has one; pstack's [create-verification-skill](https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/create-verification-skill/SKILL.md) makes one), not only tests, and give each a verdict: VERIFIED, NOT VERIFIED, or INCONCLUSIVE when it cannot run here (GPU, credentials). Follow the build file's rules for where heavy work runs. If a hook or check fails for a reason outside the change (a broken local tool), stop and report it; never bypass the hook.
 
 Exit: you can say what ran, where, at which commit, and with what result.
 
