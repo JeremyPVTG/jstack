@@ -22,8 +22,12 @@ Saved X posts pile up unread. The useful ones belong to a few areas the owner co
 
 ## Results so far
 
-First run, 2026-11-07: 195 bookmarks; 39 queued across the configured areas, 156 ignored, including every post in the never-record category. A second run changed nothing.
+First run, 2026-11-07: 195 bookmarks; 39 queued across the configured areas, 156 ignored. A second run changed nothing.
 
 ## Revisit when
 
 bird stops working (it is marked deprecated on npm at 0.8.0), the ignored share hides things the owner wanted, or the issue volume is unwelcome in the company repository.
+
+## Amendment (2026-11-09)
+
+The owner's area names and the per-area counts of the first run were removed from this public record. The decision is unchanged.

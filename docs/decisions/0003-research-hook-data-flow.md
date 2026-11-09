@@ -10,7 +10,7 @@ Date: 2026-11-09. Status: accepted.
 
 Keep the hook as it is, and state its data flow here so that enabling it is an informed choice.
 
-- **Sent to a third party.** The first 4,000 characters of each prompt it classifies go to TypeSafe's API (`api.typesafe.ai`, or `TYPESAFE_ENDPOINT`) with four yes/no questions. Prompts under 12 characters, slash commands, and results or notices the host delivers as prompts are skipped and never sent.
+- **Sent to a third party.** The first 4,000 characters of each prompt it classifies go to TypeSafe's API (`api.typesafe.ai`, or `TYPESAFE_ENDPOINT`) with four yes/no questions. Prompts under 12 characters and slash commands are skipped and never sent, as are host-delivered results and notices that start with one of the prefixes in the script's `NOT_USER` list; any other host-delivered text is classified like a typed prompt.
 - **Kept locally.** The scores, the decision and the first 300 characters of each classified prompt are appended to `~/.local/state/jstack/research-hook.jsonl` (or `JSTACK_HOOK_LOG`; `off` disables it). The log exists so false fires can be labelled before anyone changes the questions.
 - **Off unless enabled.** The installer does not add the hook. It runs only where someone adds it to their agent's settings and provides a TypeSafe key.
 - **Fails open.** With no key, a timeout or any error, it adds nothing and the prompt goes through unchanged.

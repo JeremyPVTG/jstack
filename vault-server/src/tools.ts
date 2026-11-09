@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/server";
 import { GitHubError, headSha, readFile, snapshotAt, writeFile, type Repo } from "./github";
 import { indexFile, semanticMatches, type VaultIndex } from "./semantic";
-import { capturePath, captureText, fuse, lint, logLine, readablePath, search, skills, wikiProblems, writablePath, type Capture, type Files } from "./vault";
+import { capturePath, captureText, fuse, lint, logLine, search, skills, wikiProblems, writablePath, type Capture, type Files } from "./vault";
 
 export type VaultEnv = {
   OAUTH_KV: KVNamespace;
@@ -80,7 +80,6 @@ export function vaultServer(env: VaultEnv): Server {
       }
       case "read": {
         const path = String(args.path ?? "");
-        if (!readablePath(path)) throw new Error("read takes a path inside the vault, e.g. 'wiki/Page title.md'.");
         const file = await readFile(vault, path);
         return file ? JSON.stringify({ path, sha: file.sha, text: file.text }) : `No file at ${path}.`;
       }
