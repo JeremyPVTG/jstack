@@ -8,7 +8,7 @@ Optimize for T3 Code across selected models. Keep provider-specific mechanics in
 
 Skills are the discovery unit; packs are the installation unit. A pack does not inject all its instructions into a task. Keep independent capabilities discoverable by their own descriptions. Use modes only when they share an outcome and evidence contract, as review/confirm/fix do.
 
-Start with four task-facing skills and one maintainer skill. Research investigates questions and alternatives; evidence reconciliation determines what existing sources prove about a claim or status. Preserve existing installations during migration. Do not force a ten-group target or import all historical procedures unchanged.
+The package started with four task-facing skills and one maintainer skill; [INDEX.md](../INDEX.md) lists the current set. Research investigates questions and alternatives; evidence reconciliation determines what existing sources prove about a claim or status. Preserve existing installations during migration. Do not force a ten-group target or import all historical procedures unchanged.
 
 ## Owned core and independent upstreams
 

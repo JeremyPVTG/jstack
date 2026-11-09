@@ -4,7 +4,7 @@ Date: 2026-11-07. Status: accepted.
 
 ## Context
 
-Saved X posts pile up unread. The useful ones belong to three areas (job search, the company, agent tooling); many are noise, and some are adult content that must never reach the vault. The owner wants to check later what was decided about any bookmark.
+Saved X posts pile up unread. The useful ones belong to a few areas the owner configures; many are noise, and some are content that must never reach the vault. The owner wants to check later what was decided about any bookmark.
 
 ## Decision
 
@@ -22,8 +22,12 @@ Saved X posts pile up unread. The useful ones belong to three areas (job search,
 
 ## Results so far
 
-First run, 2026-11-07: 195 bookmarks; 39 queued (23 tooling, 11 company issues, 5 job search), 156 ignored, including every adult post. A second run changed nothing.
+First run, 2026-11-07: 195 bookmarks; 39 queued across the configured areas, 156 ignored. A second run changed nothing.
 
 ## Revisit when
 
 bird stops working (it is marked deprecated on npm at 0.8.0), the ignored share hides things the owner wanted, or the issue volume is unwelcome in the company repository.
+
+## Amendment (2026-11-09)
+
+The owner's area names and the per-area counts of the first run were removed from this public record. The decision is unchanged.

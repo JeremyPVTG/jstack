@@ -79,8 +79,9 @@ export function vaultServer(env: VaultEnv): Server {
         return hits.length ? JSON.stringify(hits, null, 1) : "No matches. Try other words, or `list` a folder.";
       }
       case "read": {
-        const file = await readFile(vault, String(args.path ?? ""));
-        return file ? JSON.stringify({ path: args.path, sha: file.sha, text: file.text }) : `No file at ${args.path}.`;
+        const path = String(args.path ?? "");
+        const file = await readFile(vault, path);
+        return file ? JSON.stringify({ path, sha: file.sha, text: file.text }) : `No file at ${path}.`;
       }
       case "list": {
         const { files } = await vaultFiles();

@@ -54,6 +54,14 @@ class VaultLintTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn('0 errors, 0 warnings', out)
 
+    def test_quoted_frontmatter_values_are_accepted(self):
+        self.page('A', 'See [[B]].', type='"topic"', reviewed="'2026-11-01'", volatility='"medium"')
+        self.page('B', 'See [[A]].')
+        self.index('A', 'B')
+        code, out = self.run_lint()
+        self.assertEqual(code, 0, out)
+        self.assertIn('0 errors, 0 warnings', out)
+
     def test_errors(self):
         self.page('A', 'See [[Missing page]].', type='opinion')
         (self.vault / 'wiki' / 'B.md').write_text('# B\nNo frontmatter. [[A]]\n')

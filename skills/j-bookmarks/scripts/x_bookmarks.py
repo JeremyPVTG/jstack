@@ -15,7 +15,8 @@ Usage: x_bookmarks.py COMMAND
   queue [AREA] [--stale]   To-research rows as JSON; --stale only those queued over 30 days.
   calibrate "RULE"         Add an owner correction the classifier reads on every sweep.
   summary                  One line of counts.
-  sweep                    sync, new, classify, record: the weekly job.
+  sweep                    new, classify, record: the weekly job. record runs sync, so a failed
+                           fetch or classify stops before any issue is opened or closed.
 
 Config: `research_vault` and `x_bookmarks` in ~/.config/jstack/config.json (see SKILL.md).
 """

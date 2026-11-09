@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { localDate } from "../src/tools";
-import { captureText, capturePath, lint, listField, logLine, search, skills, untar, wikiProblems, writablePath, type Files } from "../src/vault";
+import { captureText, capturePath, lint, listField, logLine, readablePath, search, skills, untar, wikiProblems, writablePath, type Files } from "../src/vault";
 
 const page = (title: string, body = "", type = "topic", reviewed = "2026-11-01", volatility = "medium") =>
   `---\ntype: ${type}\nreviewed: ${reviewed}\nvolatility: ${volatility}\nsources:\n  - "[[raw/2026-11/2026-11-01 source]]"\n---\n\n# ${title}\n\n${body}\n`;
@@ -117,6 +117,11 @@ describe("writes", () => {
     expect(writablePath("wiki/A page.md")).toBe(true);
     expect(writablePath("index.md")).toBe(true);
     for (const path of ["raw/2026-11/x.md", "log.md", "AGENTS.md", "wiki/sub/x.md", "wiki/../AGENTS.md"]) expect(writablePath(path), path).toBe(false);
+  });
+
+  it("lets read fetch only paths inside the vault", () => {
+    for (const path of ["index.md", "wiki/A page.md", "raw/2026-11/2026-11-01 source.md", ".gitattributes"]) expect(readablePath(path), path).toBe(true);
+    for (const path of ["", "../other-repo/contents/README.md", "wiki/../../x", "../../../user", "/index.md", "wiki//A.md", "./index.md", "wiki\\..\\x"]) expect(readablePath(path), path).toBe(false);
   });
 
   it("validates wiki frontmatter", () => {

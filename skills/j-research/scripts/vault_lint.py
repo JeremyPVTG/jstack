@@ -33,7 +33,7 @@ def frontmatter(text):
     for line in text[4:end].splitlines():
         match = re.match(r'([A-Za-z_]+):\s*(.*?)\s*(?:#.*)?$', line)
         if match:
-            fields[match.group(1)] = match.group(2)
+            fields[match.group(1)] = re.sub(r'^["\']|["\']$', '', match.group(2))  # as the vault server's lint does
     return fields
 
 
