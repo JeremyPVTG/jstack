@@ -29,7 +29,7 @@ Stop and ask when the work needs a secret or credential, spends money, takes an 
 
 ## 0. Brief
 
-Before changing anything, restate in a few lines: the goal as done-criteria a user could observe, the stops that apply, what the brief forbids, what the work depends on, the size, and the branch name (a tracker or delivery node's branch wins over one you invent). When the task is a node in a delivery plan, read the node first: its gate conditions are stops.
+Before changing anything, restate in a few lines: the goal as done-criteria a user could observe, the stops that apply, what the brief forbids, what the work depends on, the size, and the branch name (a tracker or delivery node's branch wins over one you invent). Name the action, expected result and proof you will return for each changed behaviour. When the task is a node in a delivery plan, read the node first: its gate conditions are stops.
 
 ## 1. Diagnose (read-only)
 
@@ -63,7 +63,15 @@ Exit: `VERDICT: CLEAN`, meaning every lens ran, every finding was refuted or fix
 
 Run, before pushing, exactly the checks the build file says the push hook and CI run, scoped to the files you changed. Then check each done-criterion on the entry point users actually run (the repo's verify skill if it has one; pstack's [create-verification-skill](https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/create-verification-skill/SKILL.md) makes one), not only tests, and give each a verdict: VERIFIED, NOT VERIFIED, or INCONCLUSIVE when it cannot run here (GPU, credentials). Follow the build file's rules for where heavy work runs. If a hook or check fails for a reason outside the change (a broken local tool), stop and report it; never bypass the hook.
 
-Exit: you can say what ran, where, at which commit, and with what result.
+Return inspectable proof of the exact change:
+
+- **UI:** run the changed app locally or in an authorized preview/test environment. Capture screenshots for static visual changes and a short screen recording for interactions, showing the starting state, user action and result. For a form-to-toast change, submit through the form and capture the toast; check the response or saved state too, since a toast alone does not prove the operation succeeded.
+- **HTML deliverable:** open and exercise the actual HTML, then return it with the observed result. A recreated mockup or explanatory HTML page is not proof that another app works.
+- **Nonvisual change:** return the executed command or request, its output and the check against the expected result. Use the artifact appropriate to the change rather than inventing a UI.
+
+Inspect the captured proof before handing it over. Record its tested revision, environment and steps, keep it after cleanup, and label any mocked boundary. If recording is unavailable, disclose that gap and provide ordered screenshots with the executed steps; mark any behaviour you could not observe INCONCLUSIVE.
+
+Exit: each done-criterion has a verdict and inspectable evidence, or an explicit evidence gap.
 
 ## 6. Publish
 
@@ -72,3 +80,5 @@ Use j-deliver: commit and push with hooks on (never skip them), open a draft PR 
 ## 7. Report
 
 Lead with the answer. For Small work, at most five lines: the answer, what changed, which check ran at which commit and its result, then the next actions. Otherwise: root cause, what changed, what ran where and its result, PR link and head commit, check state, each done-criterion's verdict and its evidence, and the owner's next actions as a numbered list, or "Nothing needed from you".
+
+At every size, show the proof using the host's supported artifact viewer and include links to the HTML, screenshots, recording or command evidence. The Small prose limit does not remove this deliverable. A filename without an accessible artifact is not a handoff.
