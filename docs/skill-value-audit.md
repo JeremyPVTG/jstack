@@ -45,3 +45,9 @@ Run matched baseline/candidate trials on the existing development cases in T3. I
 Use negative controls: simple lookup, clean diff, already-fixed finding, and an accurate status claim. A skill that adds ceremonies or creates work on these cases fails the value test even if its prose sounds rigorous.
 
 Retain separate skills only if discovery can distinguish them. If j-research and j-evidence repeatedly misroute, revise their descriptions before merging their different outcomes. Do not expand the stack until these candidates show a useful tradeoff.
+
+## 2026-11-17 inspectable build proof
+
+At the owner's request, j-build now names the demonstration in the brief and returns inspectable proof at every task size. UI interactions require a recording of the changed app, with an explicit screenshot fallback when recording is unavailable; static visual changes use screenshots. HTML deliverables are opened and exercised, and nonvisual work returns command or request evidence. Artifacts identify the tested revision, environment and steps, survive cleanup, and are shown in the handoff. A recreated mockup cannot verify another app.
+
+Package and skill-format validation passed. Independent contract and policy reviews found no blocking defect. A separate tabletop check applied the instructions to an asynchronous form, a CLI parser, a missing recorder, an explanatory HTML substitute and a CSS-only change; the interpretations matched the requested contract. No app ran in those scenarios, and no behavioral improvement is claimed. Proof on a real UI task remains unmeasured.
