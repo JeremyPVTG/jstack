@@ -62,4 +62,4 @@ A commit that grows a skill or changes what it tells the agent to do ends with t
 
 When adding a skill, give it a specific outcome, keep conditional detail in linked references, add a realistic case to [jstack-evals](https://github.com/JeremyPVTG/jstack-evals), and regenerate INDEX.md with `python3 scripts/check.py --write-index`.
 
-See [the current skill value audit](docs/skill-value-audit.md), [package decisions](docs/design.md), [migration audit](docs/audit.md), and [evaluation boundary](docs/evaluation.md). Measured results, including the skills that showed no gain, are in [jstack-evals](https://github.com/JeremyPVTG/jstack-evals#results). A valid Markdown file does not prove a better agent workflow.
+See [the current skill value audit](docs/skill-value-audit.md), [package decisions](docs/design.md), [migration audit](docs/audit.md), and [evaluation boundary](docs/evaluation.md). Measured results are in [jstack-evals](https://github.com/JeremyPVTG/jstack-evals#results). A valid Markdown file does not prove a better agent workflow.
