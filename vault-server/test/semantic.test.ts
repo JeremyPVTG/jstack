@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { semanticMatches, syncIndex, type VaultIndex } from "../src/semantic";
+import { semanticMatches, syncIndex, type StateStore, type VaultIndex } from "../src/semantic";
 import { fuse, search, type Files } from "../src/vault";
 
 const page = (title: string, body = "", extra = "") =>
@@ -51,12 +51,12 @@ function fakeIndex() {
   return { index, items, calls };
 }
 
-function fakeKv(): KVNamespace {
+function fakeKv(): StateStore {
   const store = new Map<string, string>();
   return {
-    get: async (key: string, type?: string) => (store.has(key) ? (type === "json" ? JSON.parse(store.get(key)!) : store.get(key)) : null),
+    get: async (key: string) => store.get(key) ?? null,
     put: async (key: string, value: string) => void store.set(key, value),
-  } as unknown as KVNamespace;
+  };
 }
 
 describe("syncIndex", () => {

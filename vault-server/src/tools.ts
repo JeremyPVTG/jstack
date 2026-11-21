@@ -53,6 +53,21 @@ async function snapshot(env: VaultEnv, repo: Repo, keep: (path: string) => boole
 
 const textOnly = (path: string) => /\.(md|py|sh|json|txt|ya?ml|ts)$/.test(path);
 
+/** Tool arguments as a capture; captureText rejects a bad kind or slug. */
+const toCapture = (args: Record<string, unknown>): Capture => {
+  const optional = (value: unknown) => (value === undefined || value === null ? undefined : String(value));
+  return {
+    slug: String(args.slug ?? ""),
+    url: String(args.url ?? ""),
+    title: String(args.title ?? ""),
+    author: optional(args.author),
+    published: optional(args.published),
+    kind: String(args.kind ?? ""),
+    version: optional(args.version),
+    body: String(args.body ?? ""),
+  };
+};
+
 const vaultRepo = (env: VaultEnv): Repo => ({ slug: env.VAULT_REPO, branch: "main", token: env.VAULT_GITHUB_TOKEN });
 
 /** The vault's Markdown at the head of main (cached per commit). */
@@ -102,7 +117,7 @@ export function vaultServer(env: VaultEnv): Server {
       }
       case "capture_source": {
         const day = localDate(env.VAULT_TZ);
-        const capture = args as Capture;
+        const capture = toCapture(args);
         const path = capturePath(capture, day);
         const text = captureText(capture, day);
         await writeFile(vault, path, text, `agent: capture ${path}`);
@@ -149,7 +164,7 @@ export function vaultServer(env: VaultEnv): Server {
   server.setRequestHandler("tools/list", async () => ({ tools: TOOLS.map((tool) => ({ ...tool, inputSchema: { ...tool.inputSchema, type: "object" as const } })) }));
   server.setRequestHandler("tools/call", async (request) => {
     try {
-      const text = await call(request.params.name, (request.params.arguments ?? {}) as Record<string, unknown>);
+      const text = await call(request.params.name, request.params.arguments ?? {});
       return { content: [{ type: "text" as const, text }] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
