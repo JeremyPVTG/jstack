@@ -12,10 +12,25 @@ export type VaultIndex = {
   };
 };
 
+/** The parts of a KV namespace the index state uses. */
+export type StateStore = {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
+};
+
 const STATE_KEY = "aisearch:indexed"; // path -> sha-1 of the indexed text
 const MAX_UPLOADS = 30; // per sync run, to stay inside a Worker's subrequest budget
 
 const hash = async (text: string) => [...new Uint8Array(await crypto.subtle.digest("SHA-1", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+/** The indexed path -> hash map; anything unreadable counts as nothing indexed yet. */
+async function readState(kv: StateStore): Promise<Record<string, string>> {
+  const raw = await kv.get(STATE_KEY);
+  if (!raw) return {};
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+}
 
 /** Vector matches for a query, or null when the index is unavailable or slow. */
 export async function semanticMatches(index: VaultIndex | undefined, query: string, limit: number): Promise<Semantic[] | null> {
@@ -33,11 +48,11 @@ export async function semanticMatches(index: VaultIndex | undefined, query: stri
 }
 
 /** Index one file right after a write, so it is searchable before the next scheduled sync. */
-export async function indexFile(index: VaultIndex | undefined, kv: KVNamespace, path: string, text: string): Promise<void> {
+export async function indexFile(index: VaultIndex | undefined, kv: StateStore, path: string, text: string): Promise<void> {
   if (!index || !searchable(path)) return;
   try {
     await index.items.upload(path, text);
-    const state = (await kv.get<Record<string, string>>(STATE_KEY, "json")) ?? {};
+    const state = await readState(kv);
     state[path] = await hash(text);
     await kv.put(STATE_KEY, JSON.stringify(state));
   } catch (error) {
@@ -46,8 +61,8 @@ export async function indexFile(index: VaultIndex | undefined, kv: KVNamespace, 
 }
 
 /** Bring the index in line with the vault: upload new or changed pages, delete removed ones. */
-export async function syncIndex(index: VaultIndex, kv: KVNamespace, files: Files): Promise<{ uploaded: number; deleted: number; pending: number }> {
-  const state = (await kv.get<Record<string, string>>(STATE_KEY, "json")) ?? {};
+export async function syncIndex(index: VaultIndex, kv: StateStore, files: Files): Promise<{ uploaded: number; deleted: number; pending: number }> {
+  const state = await readState(kv);
   const wanted = Object.keys(files).filter(searchable).sort();
   const changed: string[] = [];
   for (const path of wanted) if (state[path] !== (await hash(files[path]))) changed.push(path);

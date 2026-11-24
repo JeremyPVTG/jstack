@@ -1,4 +1,4 @@
-import { AuthorizationError, CimdFetchError, getOAuthApi, OAuthProvider, type AuthRequest, type ConsentDescription, type OAuthProviderOptions } from "@cloudflare/workers-oauth-provider";
+import { AuthorizationError, CimdFetchError, getOAuthApi, OAuthProvider, type ConsentDescription, type OAuthProviderOptions } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { readJson } from "./github";
 import { syncIndex } from "./semantic";
@@ -129,7 +129,7 @@ async function callback(request: Request, url: URL, env: Env, oauth: OAuthApi): 
   if (String(user.id) !== env.ALLOWED_GITHUB_ID) return page(403, "Not allowed", "This vault belongs to someone else.");
   const client = await oauth.lookupClient(resumed.request.clientId);
   const { redirectTo } = await oauth.completeAuthorization({
-    request: resumed.request as AuthRequest,
+    request: resumed.request,
     userId: String(user.id),
     metadata: { clientName: client?.clientName?.trim() || resumed.request.clientId, grantedAt: new Date().toISOString() },
     scope: SCOPES,
