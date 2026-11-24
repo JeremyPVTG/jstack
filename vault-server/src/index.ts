@@ -1,5 +1,6 @@
 import { AuthorizationError, CimdFetchError, getOAuthApi, OAuthProvider, type AuthRequest, type ConsentDescription, type OAuthProviderOptions } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "@modelcontextprotocol/server";
+import { readJson } from "./github";
 import { syncIndex } from "./semantic";
 import { vaultServer, vaultSnapshot, type VaultEnv } from "./tools";
 
@@ -9,13 +10,18 @@ import { vaultServer, vaultSnapshot, type VaultEnv } from "./tools";
  * resource at /mcp. A client is allowed on a consent page, then the person
  * signs in with GitHub; only ALLOWED_GITHUB_ID can complete a grant.
  */
-type Env = VaultEnv & {
+interface Env extends VaultEnv {
   RATE_LIMITER: RateLimit;
   ALLOWED_GITHUB_ID: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
-};
-type Props = { githubId: string; login: string };
+}
+interface Props {
+  githubId: string;
+  login: string;
+}
+const isProps = (value: unknown): value is Props =>
+  typeof value === "object" && value !== null && "githubId" in value && typeof value.githubId === "string" && "login" in value && typeof value.login === "string";
 
 const MCP_PATH = "/mcp";
 const SCOPES = ["vault.read", "vault.write"];
@@ -23,7 +29,7 @@ const SCOPES = ["vault.read", "vault.write"];
 function options(origin: string): OAuthProviderOptions<Env> {
   return {
     apiRoute: MCP_PATH,
-    apiHandler: { fetch: (request: Request, env: Env, ctx: ExecutionContext & { props?: Props }) => serveMcp(request, env, ctx, origin) },
+    apiHandler: { fetch: (request: Request, env: Env, ctx: ExecutionContext) => serveMcp(request, env, ctx, origin) },
     defaultHandler: { fetch: async () => new Response("Not found", { status: 404 }) },
     authorizeEndpoint: "/authorize",
     tokenEndpoint: "/oauth/token",
@@ -35,14 +41,15 @@ function options(origin: string): OAuthProviderOptions<Env> {
     requiredScopes: ["vault.read"],
     resourceMetadata: { resource: `${origin}${MCP_PATH}`, resource_name: "Jeremy's vault" },
     onError: ({ code, internal }) => console.log(JSON.stringify({ level: "warn", route: "oauth", code, reason: internal?.reason ?? null })),
-  } as OAuthProviderOptions<Env>;
+  } satisfies OAuthProviderOptions<Env>;
 }
 
-async function serveMcp(request: Request, env: Env, ctx: ExecutionContext & { props?: Props }, origin: string): Promise<Response> {
-  if (ctx.props?.githubId !== env.ALLOWED_GITHUB_ID) return json(403, { error: "access_denied", error_description: "This connection is not for the vault owner." });
+async function serveMcp(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
+  const props = isProps(ctx.props) ? ctx.props : undefined;
+  if (props?.githubId !== env.ALLOWED_GITHUB_ID) return json(403, { error: "access_denied", error_description: "This connection is not for the vault owner." });
   const browserOrigin = request.headers.get("origin");
   if (browserOrigin && browserOrigin !== origin) return json(403, { error: "access_denied", error_description: "Requests from other sites are refused." });
-  if (!(await env.RATE_LIMITER.limit({ key: `mcp:${ctx.props.githubId}` })).success) return json(429, { error: "too_many_requests" }, { "retry-after": "60" });
+  if (!(await env.RATE_LIMITER.limit({ key: `mcp:${props.githubId}` })).success) return json(429, { error: "too_many_requests" }, { "retry-after": "60" });
   return createMcpHandler(() => vaultServer(env), { onerror: (error) => console.log(JSON.stringify({ level: "warn", route: "mcp", message: error.message.slice(0, 200) })) }).fetch(request);
 }
 
@@ -110,15 +117,15 @@ async function callback(request: Request, url: URL, env: Env, oauth: OAuthApi): 
   const resumed = await oauth.finishUpstream<unknown>(request);
   const code = url.searchParams.get("code");
   if (!code) return page(400, "Sign-in cancelled", "GitHub did not return a sign-in. Start connecting again from your AI tool.");
-  const token = (await (
+  const token = await readJson<{ access_token?: string }>(
     await fetch("https://github.com/login/oauth/access_token", {
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: `${url.origin}/callback` }),
-    })
-  ).json()) as { access_token?: string };
+    }),
+  );
   if (!token.access_token) return page(400, "Sign-in failed", "GitHub did not issue a token. Start connecting again from your AI tool.");
-  const user = (await (await fetch("https://api.github.com/user", { headers: { authorization: `Bearer ${token.access_token}`, "user-agent": "jvault", accept: "application/vnd.github+json" } })).json()) as { id?: number; login?: string };
+  const user = await readJson<{ id?: number; login?: string }>(await fetch("https://api.github.com/user", { headers: { authorization: `Bearer ${token.access_token}`, "user-agent": "jvault", accept: "application/vnd.github+json" } }));
   if (String(user.id) !== env.ALLOWED_GITHUB_ID) return page(403, "Not allowed", "This vault belongs to someone else.");
   const client = await oauth.lookupClient(resumed.request.clientId);
   const { redirectTo } = await oauth.completeAuthorization({

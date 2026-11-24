@@ -3,14 +3,14 @@ import { GitHubError, headSha, readFile, snapshotAt, writeFile, type Repo } from
 import { indexFile, semanticMatches, type VaultIndex } from "./semantic";
 import { capturePath, captureText, fuse, lint, logLine, search, skills, wikiProblems, writablePath, type Capture, type Files } from "./vault";
 
-export type VaultEnv = {
+export interface VaultEnv {
   OAUTH_KV: KVNamespace;
   VAULT_REPO: string;
   SKILLS_REPO: string;
   VAULT_GITHUB_TOKEN: string;
   VAULT_SEARCH?: VaultIndex;
   VAULT_TZ?: string;
-};
+}
 
 export const INSTRUCTIONS = [
   "Jeremy's personal research vault and agent skills (jstack), available from any device.",
@@ -64,7 +64,7 @@ export function vaultServer(env: VaultEnv): Server {
   const vaultFiles = () => vaultSnapshot(env);
   const skillFiles = () => snapshot(env, jstack, (path) => path.startsWith("skills/") && textOnly(path));
 
-  const call = async (name: string, args: Record<string, any>): Promise<string> => {
+  const call = async (name: string, args: Record<string, unknown>): Promise<string> => {
     switch (name) {
       case "guide": {
         const { files } = await vaultFiles();
@@ -149,7 +149,7 @@ export function vaultServer(env: VaultEnv): Server {
   server.setRequestHandler("tools/list", async () => ({ tools: TOOLS.map((tool) => ({ ...tool, inputSchema: { ...tool.inputSchema, type: "object" as const } })) }));
   server.setRequestHandler("tools/call", async (request) => {
     try {
-      const text = await call(request.params.name, (request.params.arguments ?? {}) as Record<string, any>);
+      const text = await call(request.params.name, (request.params.arguments ?? {}) as Record<string, unknown>);
       return { content: [{ type: "text" as const, text }] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

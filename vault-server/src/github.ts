@@ -24,6 +24,9 @@ async function gh(repo: Repo, path: string, init: RequestInit = {}): Promise<Res
   return response;
 }
 
+/** The one place a GitHub response body is given a type; callers name the fields they read. */
+export const readJson = <T>(response: Response): Promise<T> => response.json() as Promise<T>;
+
 async function ok(response: Response, what: string): Promise<Response> {
   if (response.ok) return response;
   throw new GitHubError(response.status, `${what}: GitHub ${response.status} ${(await response.text()).slice(0, 200)}`);
@@ -39,7 +42,7 @@ const fromBase64 = (data: string) => new TextDecoder().decode(Uint8Array.from(at
 
 export async function headSha(repo: Repo): Promise<string> {
   const response = await ok(await gh(repo, `/git/ref/heads/${repo.branch}`), "read branch");
-  return ((await response.json()) as { object: { sha: string } }).object.sha;
+  return (await readJson<{ object: { sha: string } }>(response)).object.sha;
 }
 
 /** All matching text files at a commit, from one tarball download. */
@@ -52,7 +55,7 @@ export async function snapshotAt(repo: Repo, sha: string, keep: (path: string) =
 export async function readFile(repo: Repo, path: string): Promise<{ text: string; sha: string } | null> {
   const response = await gh(repo, `/contents/${encodePath(path)}?ref=${repo.branch}`);
   if (response.status === 404) return null;
-  const body = (await (await ok(response, `read ${path}`)).json()) as { content?: string; sha: string; type: string };
+  const body = await readJson<{ content?: string; sha: string; type: string }>(await ok(response, `read ${path}`));
   if (body.type !== "file" || body.content === undefined) throw new GitHubError(400, `${path} is not a file`);
   return { text: fromBase64(body.content), sha: body.sha };
 }
@@ -66,7 +69,7 @@ export async function writeFile(repo: Repo, path: string, text: string, message:
   if (response.status === 409 || response.status === 422) {
     throw new GitHubError(409, sha ? `${path} changed since you read it. Read it again, reapply your edit, and retry.` : `${path} already exists. Read it first and pass its sha to replace it.`);
   }
-  const body = (await (await ok(response, `write ${path}`)).json()) as { content: { sha: string }; commit: { sha: string } };
+  const body = await readJson<{ content: { sha: string }; commit: { sha: string } }>(await ok(response, `write ${path}`));
   return { sha: body.content.sha, commit: body.commit.sha };
 }
 

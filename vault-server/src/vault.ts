@@ -157,6 +157,9 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
 const tokens = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 
 export type Hit = { path: string; title: string; type: string; reviewed: string; stale?: true; superseded_by?: string[]; match?: "keyword" | "semantic" | "both"; snippet: string; score: number };
+interface FusedHit extends Hit {
+  fused: number;
+}
 type Info = Pick<Hit, "title" | "type" | "reviewed" | "stale" | "superseded_by">;
 
 /** Wiki page title -> titles of the pages that supersede it, lower-cased keys. */
@@ -234,7 +237,7 @@ export type Semantic = { path: string; text: string };
  */
 export function fuse(files: Files, keyword: Hit[], semantic: Semantic[], limit = 8, today = new Date()): Hit[] {
   const successors = successorsOf(files);
-  const merged = new Map<string, Hit & { fused: number }>();
+  const merged = new Map<string, FusedHit>();
   keyword.forEach((hit, rank) => merged.set(hit.path, { ...hit, match: "keyword", fused: 1 / (61 + rank) }));
   const seen = new Set<string>();
   let rank = 0;

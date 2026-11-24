@@ -60,6 +60,6 @@ python3 -m unittest discover -s tests
 
 A commit that grows a skill or changes what it tells the agent to do ends with two trailers, adapted from [gstack's write-skill](https://github.com/garrytan/gstack/tree/main/write-skill): `Skill-Size: <before>→<after> bytes (<file>)` from `python3 scripts/check.py --sizes`, and `Evidence:` naming an eval run, a dated plan to measure (`plan <suite> measure_by <date>`), or `safety: <reason>`. Wording fixes and cuts that change no behaviour may leave them out. A skill grows only with evidence; the default edit is a cut.
 
-When adding a skill, give it a specific outcome, keep conditional detail in linked references, add a realistic case to the separate jstack-evals repository, and regenerate INDEX.md with `python3 scripts/check.py --write-index`.
+When adding a skill, give it a specific outcome, keep conditional detail in linked references, add a realistic case to [jstack-evals](https://github.com/JeremyPVTG/jstack-evals), and regenerate INDEX.md with `python3 scripts/check.py --write-index`.
 
-See [the current skill value audit](docs/skill-value-audit.md), [package decisions](docs/design.md), [migration audit](docs/audit.md), and [evaluation boundary](docs/evaluation.md). Behavioral test cases are proposals until results are recorded; a valid Markdown file does not prove a better agent workflow.
+See [the current skill value audit](docs/skill-value-audit.md), [package decisions](docs/design.md), [migration audit](docs/audit.md), and [evaluation boundary](docs/evaluation.md). Measured results are in [jstack-evals](https://github.com/JeremyPVTG/jstack-evals#results). A valid Markdown file does not prove a better agent workflow.
