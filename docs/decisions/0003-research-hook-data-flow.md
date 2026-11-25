@@ -25,3 +25,7 @@ Anyone who enables it should expect prompts that contain pasted text, names or i
 ## Revisit when
 
 False reminders become a nuisance (label the log first, then tune), TypeSafe's terms or retention change, or a host loads skills reliably from their descriptions.
+
+## 2026-11-25: unsettled-band cut-off
+
+False reminders became a nuisance on briefs and messages relayed between agent threads, which score as unsettled but probably self-contained. Following the revisit rule, the 207 logged prompts a stricter cut-off would silence were labelled first: one clearly needed research and four might. The unsettled band now fires only when `self_contained` is below 0.30 instead of 0.70. The data flow above is unchanged.
