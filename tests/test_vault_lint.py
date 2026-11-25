@@ -100,6 +100,24 @@ class VaultLintTest(unittest.TestCase):
         (self.vault / 'wiki' / 'Old.md').write_text(PAGE.format(type='topic', reviewed='2026-11-01', volatility='medium', title='Old', body='Replaced by [[New]]; disputed in [[Other]].'))
         self.assertNotIn('superseded by', self.run_lint()[1])
 
+    def test_long_index_entries_are_one_warning(self):
+        self.page('A', 'See [[B]] and [[A vs C]].')
+        self.page('B', 'See [[A]] and [[A vs C]].')
+        self.page('A vs C', 'See [[A]].', type='comparison')
+        (self.vault / 'index.md').write_text(f'- [[A]]: {"a" * 300}\n- [[B]]: {"b" * 320}\n- [[A vs C]]: {"c" * 280}\n')
+        code, out = self.run_lint()
+        self.assertEqual(code, 0, out)
+        self.assertIn('WARN  index.md: 2 entries over 280 characters (longest: B, 320)', out)
+        self.assertIn('0 errors, 1 warnings', out)
+
+    def test_unlisted_page_points_at_add_to_index(self):
+        self.page('A', 'See [[B]].')
+        self.page('B', 'See [[A]].')
+        self.index('A')
+        code, out = self.run_lint()
+        self.assertEqual(code, 1)
+        self.assertIn('ERROR wiki/B: not listed in index.md (fix: add_to_index)', out)
+
 
 if __name__ == '__main__':
     unittest.main()

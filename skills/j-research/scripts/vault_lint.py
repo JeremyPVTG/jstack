@@ -6,7 +6,8 @@ missing from index.md, index entries pointing nowhere, superseded pages that
 do not link their successor.
 Warnings (exit 0): pages past their volatility window, orphan wiki pages,
 contradictions the disputed page does not acknowledge, scope decision pages missing
-sections of j-scope's template.
+sections of j-scope's template, index entries whose summary runs over 280 characters
+(one warning for all of them).
 
 Usage: vault_lint.py VAULT [--today YYYY-MM-DD]
 """
@@ -21,6 +22,8 @@ WIKI_FIELDS = ('type', 'reviewed', 'volatility', 'sources')
 RAW_FIELDS = ('url', 'captured', 'kind')
 CODE = re.compile(r'```.*?```|`[^`\n]*`', re.S)
 LINK = re.compile(r'\[\[([^\[\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]')
+ENTRY = re.compile(r'- \[\[([^\[\]|#]+)[^\]]*\]\]:?\s*(.*)')  # an index.md entry line: title, summary
+SUMMARY_MAX = 280
 
 
 def frontmatter(text):
@@ -142,9 +145,14 @@ def lint(vault, today):
     indexed = {target for target, sources in inbound.items() if 'index' in sources}
     for rel in sorted(r for r in by_path.values() if r.startswith('wiki/')):
         if rel not in indexed:
-            errors.append(f'{rel}: not listed in index.md')
+            errors.append(f'{rel}: not listed in index.md (fix: add_to_index)')
         if not (inbound.get(rel, set()) - {'index'}):
             warnings.append(f'{rel}: orphan, no other page links to it')
+    entries = [ENTRY.fullmatch(line) for line in (vault / 'index.md').read_text(errors='replace').splitlines()]
+    long = [(m.group(1), len(m.group(2))) for m in entries if m and len(m.group(2)) > SUMMARY_MAX]
+    if long:
+        title, length = max(long, key=lambda entry: entry[1])
+        warnings.append(f'index.md: {len(long)} entries over {SUMMARY_MAX} characters (longest: {title}, {length})')
     return errors, warnings
 
 
