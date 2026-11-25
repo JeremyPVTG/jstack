@@ -9,7 +9,7 @@ A new thread starts cold: it reads its project's files and its own memory, and n
 
 ## 1. Pin the work
 
-- Name the work item and its done line: a ticket, a map, a PR, a question. Read its state from the tracker now (open or closed, claimed by whom, which PRs are merged). A brief written from memory sends the thread after work that is already finished.
+- Name the work item and its done line: a ticket, a map, a PR, a question. Read its state from the tracker immediately before you launch, the item itself included (open or closed, claimed by whom, which PRs are merged, what merged on the base since you last looked). Other sessions move the same tracker while you prepare; a brief written from an earlier read sends the thread after work that is already finished.
 - Find the base: the trunk the project's instruction file names. Whatever the work depends on must already be on that base, or the brief names its branch or PR. An unmerged dependency is the usual reason a cold thread cannot find a decision; when one is ready, ask the owner whether to merge it first.
 
 ## 2. Pick the skills
