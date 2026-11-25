@@ -1,6 +1,6 @@
 # Routing
 
-Usual pairings for a launched thread. Confirm every name in the session's skill catalog before using it; collections rename and retire skills. The project's instruction file overrides this table.
+Usual pairings for a launched thread. These are starting points, not exemptions from the three-collection selection gate in SKILL.md. Confirm every name in the session's skill catalog before using it; collections rename and retire skills. The project's instruction file overrides this table.
 
 | Work | Owner | Helpers | Ships with |
 |---|---|---|---|
