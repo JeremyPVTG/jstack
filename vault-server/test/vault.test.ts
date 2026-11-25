@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { localDate } from "../src/tools";
-import { captureText, capturePath, lint, listField, logLine, readablePath, search, skills, untar, wikiProblems, writablePath, type Files } from "../src/vault";
+import { captureText, capturePath, droppedIndexEntries, INDEX_SECTIONS, indexEntryProblems, lint, listField, logLine, readablePath, search, skills, untar, upsertIndex, wikiProblems, writablePath, type Files } from "../src/vault";
 
 const page = (title: string, body = "", type = "topic", reviewed = "2026-11-01", volatility = "medium") =>
   `---\ntype: ${type}\nreviewed: ${reviewed}\nvolatility: ${volatility}\nsources:\n  - "[[raw/2026-11/2026-11-01 source]]"\n---\n\n# ${title}\n\n${body}\n`;
@@ -143,6 +143,135 @@ describe("writes", () => {
     expect(logLine("research", "Question\nmore", ["A", "B]]"], "2026-11-07")).toBe("## [2026-11-07] research | Question more | pages: [[A]], [[B]]");
     expect(logLine("research", "Q", ["A"], "2026-11-07", "~$0.12 <b>")).toBe("## [2026-11-07] research | Q | pages: [[A]] | spend: ~$0.12 b");
     expect(() => logLine("delete", "", [], "2026-11-07")).toThrow();
+  });
+});
+
+describe("index entries", () => {
+  // Shaped like the live index: intro, newest-first sections, groups split by blank lines, a summary with a wikilink, no Entities section.
+  const INDEX = [
+    "# Index",
+    "",
+    "Every wiki page with a one-line summary. Agents read this first.",
+    "",
+    "## Topics",
+    "",
+    "- [[Newest topic]]: newest (2026-11-20).",
+    "- [[Cattle gait analysis]]: gait scoring from video (2026-11-18).",
+    "",
+    "- [[Older topic]]: builds on [[Cattle gait analysis]] (2026-11-01).",
+    "",
+    "## Decisions",
+    "",
+    "- [[Vault server scope]]: what jvault does (2026-11-10).",
+    "",
+    "## Comparisons",
+    "",
+    "- [[A vs B]]: compared (2026-11-02).",
+    "",
+  ].join("\n");
+  const entry = (title: string, summary = `about ${title} (2026-11-24).`) => ({ title, summary });
+  const linesOf = (text: string) => text.split("\n");
+  /** The "## " heading an index line sits under. */
+  const sectionOf = (text: string, line: string) => {
+    const lines = linesOf(text);
+    return lines.slice(0, lines.indexOf(line)).filter((l) => l.startsWith("## ")).pop();
+  };
+
+  it("adds a new entry first under its section and changes nothing else", () => {
+    const { text, change } = upsertIndex(INDEX, entry("Fresh page"), "Topics");
+    expect(change).toBe("added");
+    const lines = linesOf(text);
+    expect(lines.slice(4, 8)).toEqual(["## Topics", "", "- [[Fresh page]]: about Fresh page (2026-11-24).", "- [[Newest topic]]: newest (2026-11-20)."]);
+    expect(lines.filter((l) => l !== "- [[Fresh page]]: about Fresh page (2026-11-24).")).toEqual(linesOf(INDEX));
+  });
+
+  it("replaces an existing entry in place, even when it sits under another section", () => {
+    const { text, change } = upsertIndex(INDEX, entry("Vault server scope", "new summary (2026-11-24)."), "Topics");
+    expect(change).toBe("replaced");
+    const before = linesOf(INDEX);
+    const after = linesOf(text);
+    expect(after.length).toBe(before.length);
+    expect(after.filter((l, i) => l !== before[i])).toEqual(["- [[Vault server scope]]: new summary (2026-11-24)."]);
+    expect(after.indexOf("- [[Vault server scope]]: new summary (2026-11-24).")).toBe(before.indexOf("- [[Vault server scope]]: what jvault does (2026-11-10)."));
+  });
+
+  it("is idempotent: the same entry twice writes once", () => {
+    const first = upsertIndex(INDEX, entry("Fresh page"), "Decisions");
+    const second = upsertIndex(first.text, entry("Fresh page"), "Decisions");
+    expect(second).toEqual({ text: first.text, change: "unchanged" });
+    expect(upsertIndex(INDEX, entry("A vs B", "compared (2026-11-02)."), "Comparisons")).toEqual({ text: INDEX, change: "unchanged" });
+  });
+
+  it("routes each page type to its section", () => {
+    const template = "# Index\n\n## Topics\n\n## Decisions\n\n## Comparisons\n\n## Entities\n";
+    for (const [type, heading] of [["topic", "## Topics"], ["decision", "## Decisions"], ["comparison", "## Comparisons"], ["entity", "## Entities"]] as const) {
+      const { text } = upsertIndex(template, entry("Page"), INDEX_SECTIONS[type]);
+      expect(sectionOf(text, "- [[Page]]: about Page (2026-11-24)."), type).toBe(heading);
+    }
+  });
+
+  it("appends a missing section at the end", () => {
+    const { text, change } = upsertIndex(INDEX, entry("Cloudflare"), "Entities");
+    expect(change).toBe("added");
+    expect(text).toBe(`${INDEX}\n## Entities\n\n- [[Cloudflare]]: about Cloudflare (2026-11-24).\n`);
+    expect(upsertIndex("# Index", entry("X"), "Topics").text).toBe("# Index\n\n## Topics\n\n- [[X]]: about X (2026-11-24).\n");
+  });
+
+  it("keeps the file's last newline, or its absence, when the section heading is the last line", () => {
+    expect(upsertIndex("# Index\n\n## Topics\n", entry("X"), "Topics").text).toBe("# Index\n\n## Topics\n- [[X]]: about X (2026-11-24).\n");
+    expect(upsertIndex("# Index\n\n## Topics", entry("X"), "Topics").text).toBe("# Index\n\n## Topics\n- [[X]]: about X (2026-11-24).");
+    expect(upsertIndex("## Topics\n\n", entry("X"), "Topics").text).toBe("## Topics\n\n- [[X]]: about X (2026-11-24).\n");
+  });
+
+  it("does not match a title that is a prefix of another title", () => {
+    const { text, change } = upsertIndex(INDEX, entry("Cattle gait"), "Topics");
+    expect(change).toBe("added");
+    expect(text).toContain("- [[Cattle gait analysis]]: gait scoring from video (2026-11-18).");
+    expect(text).toContain("- [[Cattle gait]]: about Cattle gait (2026-11-24).");
+  });
+
+  it("matches an aliased entry by its title", () => {
+    const { text, change } = upsertIndex("## Topics\n\n- [[Page|shown]]: old\n", entry("Page", "new"), "Topics");
+    expect(change).toBe("replaced");
+    expect(text).toBe("## Topics\n\n- [[Page]]: new\n");
+  });
+
+  it("changes exactly one line for every add and replace on a realistic index", () => {
+    const titles = ["Newest topic", "Cattle gait analysis", "Older topic", "Vault server scope", "A vs B", "New one", "Cattle"];
+    for (const title of titles) {
+      for (const section of Object.values(INDEX_SECTIONS)) {
+        const { text, change } = upsertIndex(INDEX, entry(title), section);
+        const before = linesOf(INDEX);
+        const after = linesOf(text);
+        if (change === "replaced") {
+          expect(after.filter((l, i) => l !== before[i]), `${title} ${section}`).toEqual([`- [[${title}]]: about ${title} (2026-11-24).`]);
+        } else if (section === "Entities") {
+          expect(text.startsWith(INDEX), `${title} ${section}`).toBe(true);
+        } else {
+          const line = `- [[${title}]]: about ${title} (2026-11-24).`;
+          expect(after.length, `${title} ${section}`).toBe(before.length + 1);
+          expect(after.filter((l) => l !== line), `${title} ${section}`).toEqual(before);
+        }
+      }
+    }
+  });
+
+  it("accepts a one-line summary with wikilinks and refuses bad entries", () => {
+    expect(indexEntryProblems(entry("Page", "builds on [[Other page]] and [[Third|alias]] (2026-11-24)."))).toEqual([]);
+    expect(indexEntryProblems(entry("Page", "x".repeat(280)))).toEqual([]);
+    expect(indexEntryProblems(entry("Page", "x".repeat(281)))).toEqual(["summary is 281 characters; keep it to 280"]);
+    expect(indexEntryProblems(entry("Page", "first line\nsecond line"))).toEqual(["summary must be one line"]);
+    expect(indexEntryProblems(entry("Page", ""))).toEqual(["summary is empty"]);
+    expect(indexEntryProblems(entry("", "ok"))).toEqual(["title is empty"]);
+    for (const title of ["A]]: injected", "A|alias", "A#heading", "[[A", "A\nB"]) expect(indexEntryProblems(entry(title, "ok")), title).toHaveLength(1);
+  });
+
+  it("finds pages a rewrite of index.md would drop, ignoring entries for deleted pages", () => {
+    const pages = new Set(["Newest topic", "Cattle gait analysis", "Older topic", "Vault server scope"]); // no page for "A vs B"
+    const rewritten = "# Index\n\n## Topics\n\n- [[newest topic]]: renamed case\n\nSee [[Cattle gait analysis]] in prose.\n";
+    expect(droppedIndexEntries(INDEX, rewritten, pages)).toEqual(["Older topic", "Vault server scope"]);
+    expect(droppedIndexEntries(INDEX, INDEX, pages)).toEqual([]);
+    expect(droppedIndexEntries(INDEX, upsertIndex(INDEX, entry("Older topic", "shorter"), "Topics").text, pages)).toEqual([]);
   });
 });
 

@@ -3,7 +3,14 @@
 export type Files = Record<string, string>; // path -> text, paths relative to the repo root
 
 const WINDOWS: Record<string, number> = { high: 30, medium: 90, low: 365 };
-const TYPES = new Set(["topic", "entity", "comparison", "decision"]);
+export type PageType = "topic" | "decision" | "comparison" | "entity";
+/** The index.md section that lists each page type. */
+export const INDEX_SECTIONS: Record<PageType, string> = { topic: "Topics", decision: "Decisions", comparison: "Comparisons", entity: "Entities" };
+const TYPES = new Set(Object.keys(INDEX_SECTIONS));
+export const isPageType = (value: string): value is PageType => Object.hasOwn(INDEX_SECTIONS, value);
+/** An index.md entry line, "- [[Title]]: summary": groups are the title and the summary. */
+const ENTRY = /^- \[\[([^[\]|#]+)[^\]]*\]\]:?\s*(.*)$/;
+const SUMMARY_MAX = 280;
 const WIKI_FIELDS = ["type", "reviewed", "volatility", "sources"];
 const RAW_FIELDS = ["url", "captured", "kind"];
 const CODE = /```[\s\S]*?```|`[^`\n]*`/g;
@@ -152,6 +159,72 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
     if (![...from].some((source) => source !== "index")) warnings.push(`${rel}: orphan, no other page links to it`);
   }
   return { errors, warnings };
+}
+
+export type IndexEntry = { title: string; summary: string };
+
+/** Problems with an index entry, empty when valid. Summaries may hold [[wikilinks]]. */
+export function indexEntryProblems(entry: IndexEntry): string[] {
+  const problems: string[] = [];
+  if (!entry.title) problems.push("title is empty");
+  if (/[\r\n[\]|#]/.test(entry.title)) problems.push("title must be one line with no [, ], | or #");
+  if (!entry.summary) problems.push("summary is empty");
+  if (/[\r\n]/.test(entry.summary)) problems.push("summary must be one line");
+  if (entry.summary.length > SUMMARY_MAX) problems.push(`summary is ${entry.summary.length} characters; keep it to ${SUMMARY_MAX}`);
+  return problems;
+}
+
+/** Lines of `after` not in `before`, or null when `after` drops, changes or reorders a line of `before`. */
+function addedLines(before: string[], after: string[]): string[] | null {
+  const added: string[] = [];
+  let kept = 0;
+  for (const line of after) {
+    if (kept < before.length && line === before[kept]) kept++;
+    else added.push(line);
+  }
+  return kept === before.length ? added : null;
+}
+
+/**
+ * Add or replace one page's entry in index.md. An existing entry for the title is replaced in place,
+ * wherever it is; a new one goes first under "## <section>" (newest first), and a missing section is
+ * appended. Throws rather than return a text that changes any other line.
+ */
+export function upsertIndex(index: string, entry: IndexEntry, section: string): { text: string; change: "added" | "replaced" | "unchanged" } {
+  const line = `- [[${entry.title}]]: ${entry.summary}`;
+  const heading = `## ${section}`;
+  const lines = index.split("\n"); // a final "" is the text's last newline, not a blank line
+  const at = lines.findIndex((existing) => existing.match(ENTRY)?.[1] === entry.title);
+  const head = lines.findIndex((existing) => existing.trimEnd() === heading);
+  let text: string;
+  if (at >= 0) {
+    if (lines[at] === line) return { text: index, change: "unchanged" };
+    text = [...lines.slice(0, at), line, ...lines.slice(at + 1)].join("\n");
+  } else if (head >= 0) {
+    const insert = lines[head + 1] === "" && head + 2 < lines.length ? head + 2 : head + 1;
+    text = [...lines.slice(0, insert), line, ...lines.slice(insert)].join("\n");
+  } else {
+    text = `${index === "" || index.endsWith("\n") ? index : `${index}\n`}\n${heading}\n\n${line}\n`;
+  }
+  // Post-condition: a replace changes one line; an add inserts one line, plus the heading and blank lines only when the section was missing.
+  // Only an appended section may add a final newline.
+  const after = text.split("\n");
+  const ok =
+    at >= 0
+      ? after.length === lines.length && after.filter((l, i) => l !== lines[i]).join("\n") === line
+      : head >= 0
+        ? addedLines(lines, after)?.join("\n") === line && text.endsWith("\n") === index.endsWith("\n")
+        : addedLines(lines, after)?.filter((l) => l !== "").join("\n") === `${heading}\n${line}`;
+  if (!ok) throw new Error(`index.md edit for [[${entry.title}]] would change other lines; nothing written.`);
+  return { text, change: at >= 0 ? "replaced" : "added" };
+}
+
+/** Pages listed by an entry line in the old index that the new index no longer links, among pages that still exist. */
+export function droppedIndexEntries(oldIndex: string, newIndex: string, pageTitles: Set<string>): string[] {
+  const pages = new Set([...pageTitles].map((title) => title.toLowerCase()));
+  const linked = new Set([...newIndex.replace(CODE, "").matchAll(LINK)].map(([, target]) => target.trim().toLowerCase()));
+  const listed = oldIndex.split("\n").flatMap((line) => line.match(ENTRY)?.[1] ?? []);
+  return [...new Set(listed)].filter((title) => pages.has(title.trim().toLowerCase()) && !linked.has(title.trim().toLowerCase()));
 }
 
 const tokens = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
