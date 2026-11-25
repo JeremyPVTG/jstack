@@ -51,6 +51,22 @@ async function snapshot(env: VaultEnv, repo: Repo, keep: (path: string) => boole
   return { sha, files };
 }
 
+/** Read, edit and write one file, rereading and retrying up to 3 times when it changed in between (409). `edit` gets undefined for a missing file and returns null when nothing needs writing. */
+async function updateFile(repo: Repo, path: string, edit: (current: string | undefined) => string | null, message: string): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const file = await readFile(repo, path);
+    const text = edit(file?.text);
+    if (text === null) return;
+    try {
+      await writeFile(repo, path, text, message, file?.sha);
+      return;
+    } catch (error) {
+      if (!(error instanceof GitHubError && error.status === 409)) throw error;
+    }
+  }
+  throw new Error(`${path} kept changing; try again.`);
+}
+
 const textOnly = (path: string) => /\.(md|py|sh|json|txt|ya?ml|ts)$/.test(path);
 
 const vaultRepo = (env: VaultEnv): Repo => ({ slug: env.VAULT_REPO, branch: "main", token: env.VAULT_GITHUB_TOKEN });
@@ -111,17 +127,8 @@ export function vaultServer(env: VaultEnv): Server {
       }
       case "append_log": {
         const line = logLine(String(args.kind), String(args.summary ?? ""), Array.isArray(args.pages) ? args.pages.map(String) : [], localDate(env.VAULT_TZ), args.spend ? String(args.spend) : undefined);
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const log = await readFile(vault, "log.md");
-          const base = log?.text ?? "# Log\n\nAppend-only. Newest last.\n";
-          try {
-            await writeFile(vault, "log.md", `${base.replace(/\n*$/, "\n")}${line}\n`, "agent: log", log?.sha);
-            return `Logged: ${line}`;
-          } catch (error) {
-            if (!(error instanceof GitHubError && error.status === 409)) throw error;
-          }
-        }
-        throw new Error("log.md kept changing; try again.");
+        await updateFile(vault, "log.md", (log = "# Log\n\nAppend-only. Newest last.\n") => `${log.replace(/\n*$/, "\n")}${line}\n`, "agent: log");
+        return `Logged: ${line}`;
       }
       case "lint": {
         const { sha, files } = await vaultFiles();
