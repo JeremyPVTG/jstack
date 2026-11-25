@@ -10,7 +10,7 @@ Sources read 2026-11-25. "Help" = `claude plugin eval --help` (Claude Code 2.1.3
 
 **Subagent tool.** The j-build README's "no subagent tool" claim conflicts with the docs. `Agent` is in the read-only set a case can pre-approve through `allowed_tools`. The docs also say "If you only omit `Agent` from `allowed_tools`, Claude can still call it", and the only way to remove it is `--disallow-tools Agent` or `disallowed_tools` (Docs, "Grant tools" and "Remove a built-in tool"; Help, `--disallow-tools ... (e.g. Agent TaskStop)`). `--allow-tools` is only for gated tools: Bash, Write, Edit, WebFetch and `mcp__*` (Help).
 - j-build cases list `allowed_tools: [Read, Glob, Grep, Skill, TodoWrite, Edit, Write, Bash]` with no Agent (`harness/j-build/source/evals/stale-pass/prompt.md`). 71 j-research cases list Agent (`grep -rh allowed_tools harness/*/source`).
-- No trace shows Agent being used: "0 delegations in 94 with-skill runs" (`harness/j-research/README.md:75`). The j-build traces are gone (`tracePath` /private/tmp/... no longer exists).
+- No trace shows Agent being used: "0 delegations in 94 with-skill runs" (`harness/j-research/README.md:75`). The j-build traces are gone (their recorded trace paths were temporary).
 - Not verified: whether Agent is actually in the tool list of these runs, and whether a subagent sees the plugin's skills. One run with a `tool_used: Agent` grader would settle it for about $0.3.
 
 **Flags** (Help, Docs options table):
