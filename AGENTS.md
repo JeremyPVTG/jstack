@@ -9,3 +9,17 @@ Keep personal paths, account routing, private transcripts, secrets, and customer
 Use Python's standard library for package tooling. Run `python3 scripts/check.py` and `python3 -m unittest discover -s tests` for changes to the installer. Test installation in temporary directories. Do not change real agent installations unless the user requests it.
 
 External collections remain independent. Inspect their dependency closure and supported host setup before installation. Do not execute an upstream installer merely to refresh the registry.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on this repository; it is public, so issues hold sanitized evidence only. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default roles, each label named after its role. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at the root (created when needed) and ADRs in `docs/decisions/`. See `docs/agents/domain.md`.
