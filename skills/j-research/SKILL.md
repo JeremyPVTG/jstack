@@ -25,7 +25,7 @@ Use the vault MCP server if connected (call its `guide` once), else the local va
 
 ## 2. Start from the vault
 
-Read `index.md`, then the relevant pages. A page is reusable inside its volatility window (high: 30 days, medium: 90, low: 365): cite it, and if it answers the question, do not search the web for what it already covers, in any mode. Outside, re-verify only the claims the decision depends on, then update the page. A page superseded by another is history: read its successor. Say which parts came from the vault.
+Search the vault, then read the relevant pages; read `index.md` only to browse the whole vault. A page is reusable inside its volatility window (high: 30 days, medium: 90, low: 365): cite it, and if it answers the question, do not search the web for what it already covers, in any mode. Outside, re-verify only the claims the decision depends on, then update the page. A page superseded by another is history: read its successor. Say which parts came from the vault.
 
 ## 3. Landscape: what already exists
 

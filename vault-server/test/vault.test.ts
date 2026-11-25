@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { localDate } from "../src/tools";
-import { captureText, capturePath, droppedIndexEntries, INDEX_SECTIONS, indexEntryProblems, lint, listField, logLine, readablePath, search, skills, untar, upsertIndex, wikiProblems, writablePath, type Files } from "../src/vault";
+import { captureText, capturePath, droppedIndexEntries, guideText, INDEX_SECTIONS, indexEntryProblems, lint, listField, logLine, readablePath, search, skills, untar, upsertIndex, wikiProblems, writablePath, type Files } from "../src/vault";
 
 const page = (title: string, body = "", type = "topic", reviewed = "2026-11-01", volatility = "medium") =>
   `---\ntype: ${type}\nreviewed: ${reviewed}\nvolatility: ${volatility}\nsources:\n  - "[[raw/2026-11/2026-11-01 source]]"\n---\n\n# ${title}\n\n${body}\n`;
@@ -313,5 +313,22 @@ describe("scopeProblems", () => {
     expect(problems.some((p) => p.includes('"In"'))).toBe(true);
     expect(problems.some((p) => p.includes('"Risks accepted"'))).toBe(true);
     expect(problems.some((p) => p.includes("no signal"))).toBe(true);
+  });
+});
+
+describe("guideText", () => {
+  const index = "# Index\n\n## Topics\n\n- [[One page]]: first summary (2026-11-01).\n- [[Two page]]: second summary (2026-11-02).\n\n## Decisions\n\n- [[Three page]]: third summary (2026-11-03).\n";
+
+  it("returns the rules and the page count, not the index lines", () => {
+    const text = guideText("# Rules\n\nKeep raw sources unchanged.\n", index);
+    expect(text).toContain("Keep raw sources unchanged.");
+    expect(text).toContain("index.md lists 3 wiki pages");
+    expect(text).not.toContain("first summary");
+  });
+
+  it("says when the vault has no rules or index", () => {
+    const text = guideText(undefined, undefined);
+    expect(text).toContain("(no AGENTS.md)");
+    expect(text).toContain("index.md lists 0 wiki pages");
   });
 });

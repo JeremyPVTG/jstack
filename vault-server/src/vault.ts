@@ -11,6 +11,13 @@ export const isPageType = (value: string): value is PageType => Object.hasOwn(IN
 /** An index.md entry line, "- [[Title]]: summary": groups are the title and the summary. */
 const ENTRY = /^- \[\[([^[\]|#]+)[^\]]*\]\]:?\s*(.*)$/;
 const SUMMARY_MAX = 280;
+
+/** What `guide` returns: the vault's rules and a pointer to its index, not the index itself, which outgrew one tool result. */
+export function guideText(rules: string | undefined, index: string | undefined): string {
+  const pages = (index ?? "").split("\n").filter((line) => ENTRY.test(line)).length;
+  return `${rules ?? "(no AGENTS.md)"}\n\n---\n\nindex.md lists ${pages} wiki pages. Use \`search\` to find the pages on a topic; \`read\` index.md only to browse the whole vault.\n`;
+}
+
 const WIKI_FIELDS = ["type", "reviewed", "volatility", "sources"];
 const RAW_FIELDS = ["url", "captured", "kind"];
 const CODE = /```[\s\S]*?```|`[^`\n]*`/g;
