@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/server";
 import { GitHubError, headSha, readFile, snapshotAt, writeFile, type Repo } from "./github";
 import { indexFile, semanticMatches, type VaultIndex } from "./semantic";
-import { capturePath, captureText, fuse, lint, logLine, search, skills, wikiProblems, writablePath, type Capture, type Files } from "./vault";
+import { capturePath, captureText, droppedIndexEntries, frontmatter, fuse, INDEX_SECTIONS, indexEntryProblems, isPageType, lint, logLine, search, skills, upsertIndex, wikiProblems, writablePath, type Capture, type Files } from "./vault";
 
 export interface VaultEnv {
   OAUTH_KV: KVNamespace;
@@ -33,7 +33,8 @@ export const TOOLS: Tool[] = [
   { name: "search", description: "Search wiki pages and captured sources by keyword and by meaning, so pages worded differently from the query still match. Returns paths, titles, review dates and snippets; wiki pages rank above raw captures. `match` says whether a hit matched by keyword, meaning, or both. `stale: true` means the page is past its volatility window: re-verify before relying on it. `superseded_by` names the page that replaces it: read that instead. Read a page before relying on it.", inputSchema: { type: "object", properties: { query: str("Words to search for"), limit: { type: "number", description: "Max results, default 8" } }, required: ["query"] }, annotations: READ },
   { name: "read", description: "Read one vault file by path, e.g. 'wiki/LLM wiki maintenance.md'. Returns its text and sha (needed to replace it).", inputSchema: { type: "object", properties: { path: str("Path from the vault root") }, required: ["path"] }, annotations: READ },
   { name: "list", description: "List vault file paths under a folder (e.g. 'wiki/' or 'raw/2026-11/').", inputSchema: { type: "object", properties: { prefix: str("Folder prefix; empty for everything") } }, annotations: READ },
-  { name: "write_page", description: "Create or replace a wiki page (wiki/<Title>.md) or index.md. To replace, pass the sha from `read`; the write fails if the file changed since. Wiki pages need valid frontmatter (type, reviewed, volatility, sources). Also list new pages in index.md.", inputSchema: { type: "object", properties: { path: str("wiki/<Title>.md or index.md"), content: str("Full new file content"), sha: str("sha from read, required when replacing"), message: str("Short commit message") }, required: ["path", "content"] } },
+  { name: "write_page", description: "Create or replace a wiki page (wiki/<Title>.md) or index.md. To replace, pass the sha from `read`; the write fails if the file changed since. Wiki pages need valid frontmatter (type, reviewed, volatility, sources). List new pages with add_to_index; rewrite index.md only to restructure it.", inputSchema: { type: "object", properties: { path: str("wiki/<Title>.md or index.md"), content: str("Full new file content"), sha: str("sha from read, required when replacing"), message: str("Short commit message") }, required: ["path", "content"] } },
+  { name: "add_to_index", description: "List a wiki page in index.md, or replace its line. One line, at most 280 characters, ending with the date. Use this instead of rewriting index.md.", inputSchema: { type: "object", properties: { title: str("Page title, as in wiki/<Title>.md"), summary: str("One-line summary, at most 280 characters, ending with the date, e.g. '... (2026-11-24).'") }, required: ["title", "summary"] } },
   { name: "capture_source", description: "Save a decisive source to raw/ (create-only; captured sources never change). Keep verbatim the passages that support conclusions.", inputSchema: { type: "object", properties: { slug: str("short-slug"), url: str("Source URL"), title: str("Title"), author: str("Author"), published: str("YYYY-MM-DD or unknown"), kind: { type: "string", enum: ["docs", "code", "paper", "forum", "video", "social", "article", "dataset"] }, version: str("Software version described, if any"), body: str("Relevant extract") }, required: ["slug", "url", "title", "kind", "body"] } },
   { name: "append_log", description: "Append one entry to log.md for a research run, ingest, or lint pass.", inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["research", "ingest", "lint"] }, summary: str("Question, topic, or result"), pages: { type: "array", items: { type: "string" }, description: "Wiki page titles touched" }, spend: str("Approximate paid spend for the run, e.g. ~$0.12; omit if none") }, required: ["kind", "summary"] } },
   { name: "lint", description: "Check the vault: broken links, bad frontmatter, pages missing from the index (errors); stale and orphan pages (warnings). Run after writing.", inputSchema: { type: "object", properties: {} }, annotations: READ },
@@ -111,10 +112,38 @@ export function vaultServer(env: VaultEnv): Server {
         if (path.startsWith("wiki/")) {
           const problems = wikiProblems(content);
           if (problems.length) throw new Error(`Frontmatter: ${problems.join("; ")}`);
+        } else {
+          const { files } = await vaultFiles();
+          const pages = new Set(Object.keys(files).filter((p) => p.startsWith("wiki/")).map((p) => p.slice(p.lastIndexOf("/") + 1, -3)));
+          const dropped = droppedIndexEntries(files["index.md"] ?? "", content, pages);
+          if (dropped.length) throw new Error(`This index.md would unlist pages that still exist: ${dropped.slice(0, 10).map((title) => `[[${title}]]`).join(", ")}${dropped.length > 10 ? ` and ${dropped.length - 10} more` : ""}. Keep their entries, or change one line with add_to_index.`);
         }
         const result = await writeFile(vault, path, content, args.message ? `agent: ${String(args.message).slice(0, 100)}` : `agent: update ${path}`, args.sha ? String(args.sha) : undefined);
         await indexFile(env.VAULT_SEARCH, env.OAUTH_KV, path, content);
-        return `Saved ${path} (sha ${result.sha}). ${path.startsWith("wiki/") ? "Make sure index.md lists it, then run lint." : ""}`;
+        return `Saved ${path} (sha ${result.sha}). ${path.startsWith("wiki/") ? "List it with add_to_index, then run lint." : ""}`;
+      }
+      case "add_to_index": {
+        const entry = { title: String(args.title ?? "").trim(), summary: String(args.summary ?? "").trim() };
+        const problems = indexEntryProblems(entry);
+        if (problems.length) throw new Error(`Index entry: ${problems.join("; ")}`);
+        const page = await readFile(vault, `wiki/${entry.title}.md`);
+        if (!page) throw new Error(`No page at wiki/${entry.title}.md. Write it with write_page first.`);
+        const type = frontmatter(page.text)?.type ?? "";
+        if (!isPageType(type)) throw new Error(`wiki/${entry.title}.md needs a frontmatter type (topic, decision, comparison or entity) to pick its section.`);
+        const section = INDEX_SECTIONS[type];
+        let change = "unchanged";
+        await updateFile(
+          vault,
+          "index.md",
+          (index) => {
+            if (index === undefined) throw new Error("The vault has no index.md.");
+            const result = upsertIndex(index, entry, section);
+            change = result.change;
+            return result.change === "unchanged" ? null : result.text;
+          },
+          `agent: index ${entry.title}`.slice(0, 100),
+        );
+        return change === "added" ? `Listed [[${entry.title}]] under ${section} (added).` : `Listed [[${entry.title}]] (${change}, in place).`;
       }
       case "capture_source": {
         const day = localDate(env.VAULT_TZ);
