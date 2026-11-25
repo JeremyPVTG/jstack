@@ -11,6 +11,8 @@ A loop now turns retro findings from j-launch retrospectives into skill changes 
 - A separate eval author (GPT Sol) writes the target case, a reworded soft holdout and over-refusal controls before any skill text changes. They are frozen by hash; the gate fails if a hash changes. The implementer (Opus) gets the finding, not the assertions; the soft holdout stays outside its workspace until the gate runs.
 - The baseline must reproduce the failure first (target case fails at least 2 of 3 runs per model), or the finding returns to Investigate.
 - The gate is deterministic, per model (Opus and Sonnet), incumbent and candidate alternating on fresh workspaces: target 5/5 for the candidate and at most 1/5 for the incumbent; soft holdout at least 3/5; controls and the owning skill's existing probes drop by no more than one run of three; zero critical failures; SKILL.md grows no more than 20%. GPT Sol and Grok fast judge saved traces blind, as advice only.
+- A regression or critical failure on either model rejects the candidate. A target or holdout miss on only one model is inconclusive. An infrastructure fault gets one free retry per attempt; a second fault records the attempt as inconclusive.
+- A second attempt reuses the incumbent's gate runs (same incumbent commit, same frozen cases) and runs only the candidate. One full attempt is about 90 runs; a reusing second attempt is about 50. At the recent j-build average of $0.51 a run, two attempts fit the per-finding cap; at $0.75 without reuse they would not.
 - Caps: two attempts and $100 per finding, $500 per month with a check-in at $300, one open draft PR per skill, and a kill-switch file. Draft PRs only; the owner merges.
 
 ## Consequences
