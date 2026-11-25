@@ -92,7 +92,9 @@ def check_cases(cases):
 
 
 def check_gate_output(result, mode):
-    """Keep only the fields the runner reads (contract: outcome, reasons, cost_usd, runs, infra_retry_used)."""
+    """Keep only the fields the runner reads: outcome, reasons, cost_usd, runs, infra_retry_used and, from
+    per_model, each model's pass (gate) or reproduced (reproduce) flag. Reasons are public by contract; the other
+    per-model figures (holdout scores, checker notes) are never read, so never posted."""
     if not isinstance(result, dict):
         raise GateError('Malformed gate output: not an object')
     out = {key: result.get(key) for key in ('outcome', 'reasons', 'cost_usd', 'runs')}
@@ -108,6 +110,10 @@ def check_gate_output(result, mode):
     if problems:
         raise GateError(f'Malformed gate output for {mode} mode: ' + ', '.join(problems))
     out['cost_usd'] = round(float(out['cost_usd']), 4)
+    flag = 'pass' if mode == 'gate' else 'reproduced'
+    per_model = result.get('per_model') if isinstance(result.get('per_model'), dict) else {}
+    out['per_model'] = {model: figures[flag] for model, figures in per_model.items()
+                        if isinstance(figures, dict) and isinstance(figures.get(flag), bool)}
     for key in ('incumbent_reused', 'reused_runs'):
         if key in result:
             out[key] = result[key]
@@ -255,15 +261,26 @@ class Runner:
         if step == 'implement' and facts['attempt'] >= ATTEMPT_CAP:
             return f"Both attempts are used ({facts['attempt']} of {ATTEMPT_CAP})."
         estimate = money(runs * self.cost_per_run)
-        if step in ('triage', 'freeze', 'reproduce', 'implement') and facts['spent'] + estimate > PER_FINDING_CAP:
+        if step in ('triage', 'freeze', 'reproduce', 'implement', 'gate') and facts['spent'] + estimate > PER_FINDING_CAP:
             return (f"The next step ({step}) would cost about ${estimate:.2f} on top of ${facts['spent']:.2f} "
                     f'spent, over the ${PER_FINDING_CAP} per-finding cap.')
         return None
 
-    def open_loop_pr(self, skill):
+    def open_loop_pr(self, skill, number):
+        """One loop change per owning skill: an open loop draft PR, or another finding In progress or in Verify."""
         heads = [h for h in self.github.open_pr_heads() if h.startswith(f'loop/{skill}/')]
         if heads:
             return f'{skill} already has an open loop draft PR ({heads[0]}): one per skill, so this finding waits.'
+        for issue in self.github.findings():
+            if issue['number'] == number:
+                continue
+            try:
+                state = state_of(issue)
+            except Refused:
+                continue
+            if state in ('In progress', 'Verify') and self.facts(issue)['owning_skill'] == skill:
+                return (f"{skill} already has finding #{issue['number']} {state}: one loop change per skill until its "
+                        'draft PR is settled, so this finding waits.')
         return None
 
     def attempt_runs(self, attempt_before):
@@ -292,7 +309,7 @@ class Runner:
         if reason:
             plan.update(step='handoff', reason=reason)
         elif step == 'implement':
-            plan['refused'] = self.open_loop_pr(facts['owning_skill'])
+            plan['refused'] = self.open_loop_pr(facts['owning_skill'], number)
         elif step == 'settle':
             pr = self.github.pr_state(branch)
             if pr not in ('MERGED', 'CLOSED'):
@@ -393,9 +410,11 @@ class Runner:
         if self.facts(issue)['frozen']:
             raise Refused('Cases are already frozen. Changing them now would let results shape the eval.')
         check_cases(cases)
-        listed = [('target', cases['target']), ('holdout', cases['holdout'])] + [('control', c) for c in cases['controls']]
+        listed = [('target', cases['target'])] + [('control', c) for c in cases['controls']]
         lines = ['Loop freeze: eval cases frozen by the eval author.', '']
         lines += [f"- {kind} `{case['name']}`: `{case['sha256']}`" for kind, case in listed]
+        # The soft holdout's name stays off the public finding until its gate; its hash is enough to pin it.
+        lines.append(f"- soft holdout: `{cases['holdout']['sha256']}`")
         self.github.comment(number, '\n'.join(lines))
         self.record(number, 'freeze', cases=cases)
         return {'finding': number, 'step': 'freeze', 'from': state, 'to': state, 'refused': None}
@@ -492,6 +511,9 @@ class Runner:
         else:
             to, head = 'Ready', f"Loop gate: {outcome}. Back to Ready for attempt {facts['attempt'] + 1}."
         lines = [head, '', f"Attempt {facts['attempt']} of {ATTEMPT_CAP}.", '']
+        if result['per_model'] and outcome != 'retry':
+            lines += ['Per model: ' + ', '.join(f"{model} {'pass' if ok else 'fail'}"
+                                                for model, ok in result['per_model'].items()) + '.', '']
         lines += ['- ' + reason for reason in reasons] + ['', self.spend_note(facts, result)]
         self.move(issue, to, '\n'.join(lines), outcome=outcome if outcome in ('rejected', 'inconclusive') else None)
         return {'finding': number, 'step': 'gate', 'from': state, 'to': to, 'outcome': outcome, 'reasons': reasons,

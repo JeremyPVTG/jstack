@@ -188,7 +188,10 @@ class FreezeAndReproduceTest(LoopTest):
         self.github.add(21, labels=READY)
         report = self.runner.freeze(21, CASES)
         self.assertIsNone(report['refused'])
-        self.assertIn('a' * 64, self.github.issues[21]['comments'][-1])
+        comment = self.github.issues[21]['comments'][-1]
+        self.assertIn('a' * 64, comment)
+        self.assertIn('b' * 64, comment)
+        self.assertNotIn(CASES['holdout']['name'], comment)  # the soft holdout is named only after its gate
         self.assertEqual(self.github.labels(21), sorted(READY))
         self.assertEqual(self.runner.next(21)['step'], 'reproduce')
         self.assertIn('already frozen', self.runner.freeze(21, CASES)['refused'])
@@ -297,6 +300,31 @@ class AttemptTest(LoopTest):
         self.assertIn('Both models pass.', self.github.issues[21]['comments'][-1])
         plan = self.runner.next(21)
         self.assertEqual((plan['finding_spent_usd'], plan['month_spent_usd']), (48.96, 48.96))
+
+    def test_the_gate_comment_gives_the_outcome_per_model_and_the_reasons_but_no_other_figures(self):
+        self.reproduced()
+        self.runner.implement(21)
+        self.gate.outputs.append({
+            'outcome': 'inconclusive', 'reasons': ['Models disagree: sonnet: soft holdout not passed.'],
+            'cost_usd': 45.9, 'runs': 90, 'infra_retry_used': False,
+            'per_model': {'opus': {'pass': True, 'holdout': '4/5', 'critical_notes': []},
+                          'sonnet': {'pass': False, 'holdout': '2/5', 'critical_notes': ['wrote a fake receipt']}}})
+        self.runner.gate(21, self.manifest(mode='gate', attempt=1))
+        comment = self.github.issues[21]['comments'][-1]
+        self.assertIn('Loop gate: inconclusive.', comment)
+        self.assertIn('Per model: opus pass, sonnet fail.', comment)
+        self.assertIn('- Models disagree: sonnet: soft holdout not passed.', comment)
+        for detail in ('4/5', '2/5', 'fake receipt'):
+            self.assertNotIn(detail, comment)
+
+    def test_a_retry_comment_names_no_per_model_result(self):
+        self.reproduced()
+        self.runner.implement(21)
+        self.gate.outputs.append({'outcome': 'retry', 'reasons': ['opus candidate stale-receipts: 1 of 5 runs errored.'],
+                                  'cost_usd': 10.0, 'runs': 90, 'infra_retry_used': True,
+                                  'per_model': {'opus': {'pass': False}, 'sonnet': {'pass': True}}})
+        self.runner.gate(21, self.manifest(mode='gate', attempt=1))
+        self.assertNotIn('Per model', self.github.issues[21]['comments'][-1])
 
     def test_a_rejected_attempt_returns_to_ready_with_the_outcome_label_and_reasons(self):
         self.reproduced()
@@ -542,6 +570,18 @@ class GuardTest(LoopTest):
         self.assertEqual(self.github.labels(21), ['loop:inconclusive', 'ready-for-human', 'retro-finding'])
         self.assertIn('$100', self.github.issues[21]['comments'][-1])
 
+    def test_the_cap_is_checked_before_the_gate_too(self):
+        self.reproduced()
+        self.runner.implement(21)
+        self.runner.spend(21, 60.0, 'implementer')  # 63.06 spent; the gate's 90 runs would cost about 45.90 more
+        plan = self.runner.next(21)
+        self.assertEqual((plan['state'], plan['step'], plan['refused']), ('In progress', 'handoff', None))
+        self.assertIn('(gate)', plan['reason'])
+        self.assertIn('$100', plan['reason'])
+        report = self.runner.handoff(21)
+        self.assertEqual((report['refused'], report['from'], report['to']), (None, 'In progress', 'With owner'))
+        self.assertEqual(self.github.labels(21), ['loop:inconclusive', 'ready-for-human', 'retro-finding'])
+
     def test_handoff_is_refused_while_the_finding_can_still_move(self):
         self.reproduced()
         before = deepcopy(self.github.issues)
@@ -570,6 +610,24 @@ class GuardTest(LoopTest):
         self.assertIn('open loop draft PR', self.runner.next(22)['refused'])
         self.assertEqual(self.github.issues, before)
         self.github.prs = ['loop/j-review/30']
+        self.assertIsNone(self.runner.implement(22)['refused'])
+
+    def test_one_finding_per_owning_skill_in_progress_or_verify_before_any_pr_opens(self):
+        self.reproduced(21)
+        self.reproduced(22)
+        self.reproduced(23)
+        self.github.issues[23]['body'] = self.github.issues[23]['body'].replace('j-build', 'j-review')
+        self.runner.implement(21)
+        before = deepcopy(self.github.issues)
+        self.assertIn('#21', self.runner.implement(22)['refused'])
+        self.assertIn('In progress', self.runner.next(22)['refused'])
+        self.assertEqual(self.github.issues, before)
+        self.assertIsNone(self.runner.implement(23)['refused'])  # another owning skill moves freely
+        self.gate.queue('accepted', 45.9, 90)
+        self.runner.gate(21, self.manifest(mode='gate', attempt=1))
+        self.assertIn('Verify', self.runner.implement(22)['refused'])
+        self.github.closed_prs['loop/j-build/21'] = 'MERGED'
+        self.runner.settle(21)
         self.assertIsNone(self.runner.implement(22)['refused'])
 
 
