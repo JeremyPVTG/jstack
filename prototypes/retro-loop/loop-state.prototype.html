@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retro loop prototype</title>
+<style>
+:root{--bg:#fbfbfa;--surface:#fff;--fg:#1d1d1b;--muted:#6b6b66;--border:#e3e2de;--accent:#2f5bd3;--ok:#1f7a3a;--warn:#9a6400;--bad:#b42318;--chip:#f1f0ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151514;--surface:#1e1e1c;--fg:#ecebe6;--muted:#a3a29b;--border:#33332f;--accent:#7f9cf5;--ok:#5cc27a;--warn:#e0a63a;--bad:#f0776b;--chip:#2a2a27}}
+:root[data-theme="dark"]{--bg:#151514;--surface:#1e1e1c;--fg:#ecebe6;--muted:#a3a29b;--border:#33332f;--accent:#7f9cf5;--ok:#5cc27a;--warn:#e0a63a;--bad:#f0776b;--chip:#2a2a27}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:22px;font-weight:500;margin:0 0 4px}
+h2{font-size:16px;font-weight:500;margin:28px 0 10px}
+p{margin:6px 0}
+.muted{color:var(--muted)}
+.banner{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:12px 14px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.card dt{color:var(--muted);font-size:13px}
+.card dd{margin:0 0 8px;font-weight:500}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;margin:2px 4px 2px 0;font-size:13px}
+.changed{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+button{font:inherit;background:var(--surface);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 11px;margin:3px 4px 3px 0;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+.group{margin:8px 0}
+.group b{display:block;font-weight:500;font-size:13px;color:var(--muted);margin-bottom:2px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.tabs button{border-radius:8px 8px 0 0;margin:0}
+.tabs button.on{border-color:var(--accent);color:var(--accent)}
+ol.steps{padding-left:20px}
+ol.steps li{margin:4px 0}
+ol.steps li.done{color:var(--muted)}
+.log{font-size:13px;max-height:260px;overflow:auto}
+.log div{padding:3px 0;border-bottom:1px solid var(--border)}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+label.inline{margin-right:14px;font-size:14px}
+input[type=range]{vertical-align:middle}
+</style>
+</head>
+<body>
+<main>
+<h1>Retro improvement loop: state and gate prototype</h1>
+<p class="muted">PROTOTYPE, throwaway. Branch: logic. Built from the grill decisions in docs/decisions/0005.</p>
+
+<div class="banner">
+<p><b>Question.</b> Do the queue states, the reproduce-first rule, the gate and the caps we agreed give the right outcome for the first retro finding (j-build claiming completion without fresh review lenses) when things go wrong: a failure that does not reproduce, a holdout miss, models that disagree, a regression, a changed case, spend that runs out, a second attempt?</p>
+<p><b>Points to check while you click.</b> (1) The gate treats a regression or critical failure on either model as rejected, but a target or holdout miss on only one model as inconclusive. (2) An infrastructure fault gets one free retry per attempt; a second fault records inconclusive. (3) With all 5 control and probe cases at 3 runs per condition, one attempt is 90 runs. At $0.75 a run, two attempts do not fit in $100 unless the second attempt reuses the incumbent's runs.</p>
+</div>
+
+<h2>Current state</h2>
+<div id="state" class="grid"></div>
+
+<h2>Settings</h2>
+<div class="card">
+<label class="inline">Cost per run: <input id="cpr" type="range" min="0.25" max="1.25" step="0.05"> <span id="cprv"></span></label>
+<label class="inline"><input id="reuse" type="checkbox"> Second attempt reuses the incumbent's runs</label>
+</div>
+
+<h2>Guided walkthroughs</h2>
+<div class="card">
+<div class="tabs" id="tabs"></div>
+<div id="scenario"></div>
+</div>
+
+<h2>Free play</h2>
+<div class="card" id="free"></div>
+
+<h2>What happened</h2>
+<div class="card log" id="log"></div>
+</main>
+
+<script>
+// ---- Pure module: liftable into the loop. No DOM below this line until the page section. ----
+const Loop = (() => {
+  const CAPS = { perFinding: 100, monthCheckIn: 300, month: 500, attempts: 2, growthPct: 20 };
+  const MODELS = ['Opus', 'Sonnet'];
+  // Runs: reproduce = target case, incumbent, 3 runs x 2 models.
+  // Gate (full) = target 5 runs x 2 conditions x 2 models + soft holdout 5 x candidate x 2 models
+  //             + 5 control/probe cases x 3 runs x 2 conditions x 2 models.
+  const RUNS = {
+    reproduce: 6,
+    full: { target: 20, holdout: 10, controls: 60 },
+    reuse: { target: 10, holdout: 10, controls: 30 },
+  };
+
+  function initial(settings = {}) {
+    return {
+      stage: 'Not yet filed', // Not yet filed, Awaiting owner, Filed, Investigate, Ready, In progress, Verify, Done, Dismissed, Not filed, Merged into existing
+      owningSkill: 'j-build',
+      frozen: false,
+      reproduced: null,
+      attempt: 0,
+      outcomes: [],
+      prOpen: false,
+      withHuman: false,
+      spentFinding: 0,
+      spentMonth: settings.spentMonth ?? 0,
+      monthPaused: false,
+      killSwitch: false,
+      otherLoopPrForSkill: false,
+      costPerRun: settings.costPerRun ?? 0.75,
+      reuseIncumbent: settings.reuseIncumbent ?? true,
+    };
+  }
+
+  function attemptRuns(s) {
+    const r = s.attempt >= 1 && s.reuseIncumbent ? RUNS.reuse : RUNS.full;
+    return r.target + r.holdout + r.controls;
+  }
+
+  function labels(s) {
+    const l = [];
+    const open = !['Done', 'Dismissed', 'Not filed', 'Merged into existing', 'Not yet filed', 'Awaiting owner'].includes(s.stage);
+    if (s.stage !== 'Not yet filed' && s.stage !== 'Awaiting owner' && s.stage !== 'Not filed' && s.stage !== 'Merged into existing') l.push('retro-finding');
+    if (s.stage === 'Filed') l.push('needs-triage');
+    if (s.stage === 'Investigate') l.push('loop:investigate');
+    if (s.stage === 'Ready' && !s.withHuman) l.push('loop:ready', 'ready-for-agent');
+    if (s.stage === 'In progress') l.push('loop:in-progress');
+    if (s.stage === 'Verify') l.push('loop:verify');
+    if (s.stage === 'Dismissed') l.push('wontfix');
+    for (const o of s.outcomes) if (o.outcome !== 'accepted') l.push('loop:' + o.outcome);
+    if (s.withHuman) l.push('ready-for-human');
+    const status = s.stage === 'Done' ? 'closed as completed' : s.stage === 'Dismissed' ? 'closed as not planned' : open ? 'open' : 'no issue';
+    return { labels: [...new Set(l)], status };
+  }
+
+  // Gate decision for one attempt. r = { perModel: {Opus:{targetCand,targetInc,holdout,controlDrop,critical}, Sonnet:{...}}, growthPct, hashChanged, infraFault }
+  function decideGate(r) {
+    const reasons = [];
+    if (r.hashChanged) return { outcome: 'rejected', reasons: ['A frozen case or grader changed after freezing: treated as gaming the eval.'] };
+    if (r.infraFault) return { outcome: 'inconclusive', reasons: ['Infrastructure fault: too many runs did not grade.'] };
+    if (r.growthPct > CAPS.growthPct) return { outcome: 'rejected', reasons: [`SKILL.md grew ${r.growthPct}% (limit ${CAPS.growthPct}%).`] };
+    let hardFail = false; const passes = {};
+    for (const m of MODELS) {
+      const x = r.perModel[m];
+      if (x.critical > 0) { hardFail = true; reasons.push(`${m}: ${x.critical} critical failure(s).`); }
+      if (x.controlDrop > 1) { hardFail = true; reasons.push(`${m}: a control or probe dropped by ${x.controlDrop} runs of 3.`); }
+      const why = [];
+      if (x.targetInc > 1) why.push(`incumbent passed the target ${x.targetInc}/5 (baseline drifted)`);
+      if (x.targetCand < 5) why.push(`candidate passed the target ${x.targetCand}/5, needs 5/5`);
+      if (x.holdout < 3) why.push(`soft holdout ${x.holdout}/5, needs 3/5`);
+      passes[m] = why.length === 0 && x.critical === 0 && x.controlDrop <= 1;
+      if (why.length) reasons.push(`${m}: ${why.join('; ')}.`);
+    }
+    if (hardFail) return { outcome: 'rejected', reasons };
+    const n = MODELS.filter(m => passes[m]).length;
+    if (n === MODELS.length) return { outcome: 'accepted', reasons: ['Both models: target 5/5 against incumbent at most 1/5, holdout at least 3/5, no regression, no critical failure.'] };
+    if (n === 0) return { outcome: 'rejected', reasons };
+    return { outcome: 'inconclusive', reasons: ['Models disagree. ' + reasons.join(' ')] };
+  }
+
+  function guard(s) {
+    if (s.killSwitch) return 'The kill switch (loop.disabled) is on: the loop does nothing.';
+    if (s.spentMonth >= CAPS.month) return `Monthly cap reached ($${CAPS.month}).`;
+    if (s.monthPaused) return `Monthly spend passed $${CAPS.monthCheckIn}: waiting for the owner's check-in.`;
+    return null;
+  }
+
+  function spend(s, runs) {
+    const cost = +(runs * s.costPerRun).toFixed(2);
+    const before = s.spentMonth;
+    const n = { ...s, spentFinding: +(s.spentFinding + cost).toFixed(2), spentMonth: +(s.spentMonth + cost).toFixed(2) };
+    if (before < CAPS.monthCheckIn && n.spentMonth >= CAPS.monthCheckIn) n.monthPaused = true;
+    return [n, cost];
+  }
+
+  // reduce(state, action) -> { state, note, kind } ; kind: ok | warn | bad (refused)
+  function reduce(s, a) {
+    const refuse = note => ({ state: s, note, kind: 'bad' });
+    const loopStep = ['triageReady', 'triageInvestigate', 'triageDismiss', 'freeze', 'reproduce', 'implement', 'gate'].includes(a.type);
+    if (loopStep) { const g = guard(s); if (g) return refuse(g); if (s.withHuman) return refuse('This finding is with the owner (ready-for-human); the loop no longer picks it up.'); }
+    switch (a.type) {
+      case 'retroProposes':
+        if (s.stage !== 'Not yet filed') return refuse('A finding is already proposed or filed.');
+        return { state: { ...s, stage: 'Awaiting owner' }, note: 'Retrospective drafted a sanitized issue and searched for duplicates. Nothing is public until the owner approves the text.', kind: 'ok' };
+      case 'ownerApproves':
+        if (s.stage !== 'Awaiting owner') return refuse('Only a drafted finding can be approved.');
+        return { state: { ...s, stage: 'Filed' }, note: 'Owner approved the text. Public issue filed; raw evidence stays in the vault, cited by path.', kind: 'ok' };
+      case 'ownerRejectsText':
+        if (s.stage !== 'Awaiting owner') return refuse('Nothing awaiting approval.');
+        return { state: { ...s, stage: 'Not filed' }, note: 'Owner rejected the text. No issue filed.', kind: 'warn' };
+      case 'duplicateFound':
+        if (s.stage !== 'Awaiting owner') return refuse('Duplicates are found while drafting.');
+        return { state: { ...s, stage: 'Merged into existing' }, note: 'A matching issue exists: evidence added to it as a comment instead of a new issue.', kind: 'ok' };
+      case 'triageReady':
+        if (!['Filed', 'Investigate'].includes(s.stage)) return refuse('Triage only acts on Filed or Investigate findings.');
+        return { state: { ...s, stage: 'Ready' }, note: 'Triage (Opus, medium effort) confirmed the owning skill and the sanitization: Ready.', kind: 'ok' };
+      case 'triageInvestigate':
+        if (s.stage !== 'Filed') return refuse('Only a Filed finding moves to Investigate from triage.');
+        return { state: { ...s, stage: 'Investigate' }, note: 'Triage needs more evidence: Investigate.', kind: 'warn' };
+      case 'triageDismiss':
+        if (!['Filed', 'Investigate'].includes(s.stage)) return refuse('Only Filed or Investigate findings can be dismissed.');
+        return { state: { ...s, stage: 'Dismissed' }, note: 'Dismissed: closed as not planned with wontfix.', kind: 'warn' };
+      case 'freeze':
+        if (s.stage !== 'Ready') return refuse('The eval author only writes cases for a Ready finding.');
+        if (s.frozen) return refuse('Cases are already frozen. Changing them now would let results shape the eval.');
+        return { state: { ...s, frozen: true }, note: 'Eval author (GPT Sol) wrote the target case, a reworded soft holdout and two controls, then froze them by hash. The holdout is kept outside the implementer\'s workspace.', kind: 'ok' };
+      case 'reproduce': {
+        if (s.stage !== 'Ready' || !s.frozen) return refuse('Reproduce needs frozen cases on a Ready finding.');
+        if (s.reproduced) return refuse('Already reproduced; the incumbent has not changed.');
+        let [n, cost] = spend(s, RUNS.reproduce);
+        const passed = MODELS.filter(m => a.incumbentPasses[m] >= 2);
+        if (passed.length) return { state: { ...n, stage: 'Investigate', frozen: false, reproduced: null }, note: `Incumbent passed the target on ${passed.join(' and ')} (${passed.map(m => a.incumbentPasses[m] + '/3').join(', ')}). The case does not capture the failure: back to Investigate for a better case. Spent $${cost}.`, kind: 'warn' };
+        return { state: { ...n, reproduced: true }, note: `Failure reproduced: incumbent passed ${MODELS.map(m => m + ' ' + a.incumbentPasses[m] + '/3').join(', ')}. Spent $${cost}.`, kind: 'ok' };
+      }
+      case 'implement': {
+        if (s.stage !== 'Ready' || !s.reproduced) return refuse('The implementer starts only on a Ready finding whose failure reproduced.');
+        if (s.otherLoopPrForSkill) return refuse('j-build already has an open loop draft PR: one per skill. This finding waits.');
+        if (s.attempt >= CAPS.attempts) return refuse('Attempt cap reached.');
+        const est = +(attemptRuns(s) * s.costPerRun).toFixed(2);
+        if (s.spentFinding + est > CAPS.perFinding) {
+          return { state: { ...s, withHuman: true, outcomes: [...s.outcomes, { attempt: s.attempt + 1, outcome: 'inconclusive', reasons: [`Attempt ${s.attempt + 1} would cost about $${est}; $${s.spentFinding} spent of the $${CAPS.perFinding} cap.`] }] }, note: `Per-finding cap: attempt ${s.attempt + 1} would cost about $${est} on top of $${s.spentFinding}. Recorded inconclusive and handed to the owner.`, kind: 'bad' };
+        }
+        return { state: { ...s, stage: 'In progress', attempt: s.attempt + 1 }, note: `Implementer (Opus, xhigh effort) made one bounded change to j-build (attempt ${s.attempt + 1} of ${CAPS.attempts}). It saw the finding, not the assertions.`, kind: 'ok' };
+      }
+      case 'gate': {
+        if (s.stage !== 'In progress') return refuse('The gate runs only on a candidate in progress.');
+        let [n, cost] = spend(s, attemptRuns(s));
+        if (a.results.infraFault && !n.infraRetryUsed) {
+          return { state: { ...n, infraRetryUsed: true }, note: `Infrastructure fault. One free retry: the attempt is not used up; run the gate again. Spent $${cost}.`, kind: 'warn' };
+        }
+        const d = decideGate(a.results);
+        n.infraRetryUsed = false;
+        const outcomes = [...n.outcomes, { attempt: n.attempt, ...d }];
+        if (d.outcome === 'accepted') return { state: { ...n, outcomes, stage: 'Verify', prOpen: true }, note: `Gate ACCEPTED. Draft PRs opened into jstack (skill change) and jstack-evals (experiment record). Spent $${cost}.`, kind: 'ok' };
+        const out = n.attempt >= CAPS.attempts;
+        return { state: { ...n, outcomes, stage: 'Ready', reproduced: true, withHuman: out }, note: `Gate ${d.outcome.toUpperCase()}. Spent $${cost}. ${out ? 'Attempt cap reached: handed to the owner (ready-for-human).' : 'Back to Ready for attempt ' + (n.attempt + 1) + '.'}`, kind: 'warn' };
+      }
+      case 'ownerMerges':
+        if (!s.prOpen) return refuse('No draft PR to merge.');
+        return { state: { ...s, prOpen: false, stage: 'Done' }, note: 'Owner merged both PRs. Issue closed as completed.', kind: 'ok' };
+      case 'ownerDeclinesPr':
+        if (!s.prOpen) return refuse('No draft PR to decline.');
+        return { state: { ...s, prOpen: false, stage: 'Ready', withHuman: true }, note: 'Owner closed the PR without merging: the finding is with the owner.', kind: 'warn' };
+      case 'ownerCheckIn':
+        if (!s.monthPaused) return refuse('No check-in pending.');
+        return { state: { ...s, monthPaused: false }, note: 'Owner cleared the $300 check-in; the loop continues up to $500.', kind: 'ok' };
+      case 'toggleKill': return { state: { ...s, killSwitch: !s.killSwitch }, note: `Kill switch ${!s.killSwitch ? 'on' : 'off'}.`, kind: 'warn' };
+      case 'toggleOtherPr': return { state: { ...s, otherLoopPrForSkill: !s.otherLoopPrForSkill }, note: `Another loop draft PR for j-build: ${!s.otherLoopPrForSkill ? 'open' : 'none'}.`, kind: 'warn' };
+      case 'setMonthSpent': return { state: { ...s, spentMonth: a.value, monthPaused: false }, note: `Month-to-date spend set to $${a.value}.`, kind: 'warn' };
+      case 'settings': return { state: { ...s, ...a.patch }, note: null, kind: 'ok' };
+      default: return refuse('Unknown action.');
+    }
+  }
+  return { CAPS, RUNS, initial, reduce, decideGate, labels, attemptRuns };
+})();
+
+// ---- Page shell (throwaway) ----
+const both = x => ({ Opus: { ...x }, Sonnet: { ...x } });
+const CLEAN = { targetCand: 5, targetInc: 0, holdout: 4, controlDrop: 0, critical: 0 };
+const GATES = {
+  clean: { label: 'Gate: clean pass', r: { perModel: both(CLEAN), growthPct: 8 } },
+  target4: { label: 'Gate: target 4/5 on both', r: { perModel: both({ ...CLEAN, targetCand: 4 }), growthPct: 8 } },
+  holdout: { label: 'Gate: holdout 2/5 on both', r: { perModel: both({ ...CLEAN, holdout: 2 }), growthPct: 8 } },
+  sonnet: { label: 'Gate: Sonnet misses target', r: { perModel: { Opus: CLEAN, Sonnet: { ...CLEAN, targetCand: 2 } }, growthPct: 8 } },
+  regress: { label: 'Gate: Opus regresses a probe', r: { perModel: { Opus: { ...CLEAN, controlDrop: 2 }, Sonnet: CLEAN }, growthPct: 8 } },
+  critical: { label: 'Gate: one critical failure', r: { perModel: { Opus: CLEAN, Sonnet: { ...CLEAN, critical: 1 } }, growthPct: 8 } },
+  bloat: { label: 'Gate: SKILL.md grew 35%', r: { perModel: both(CLEAN), growthPct: 35 } },
+  drift: { label: 'Gate: incumbent passes 2/5', r: { perModel: both({ ...CLEAN, targetInc: 2 }), growthPct: 8 } },
+  hash: { label: 'Gate: frozen case changed', r: { perModel: both(CLEAN), growthPct: 8, hashChanged: true } },
+  infra: { label: 'Gate: infrastructure fault', r: { perModel: both(CLEAN), growthPct: 8, infraFault: true } },
+};
+const A = {
+  propose: ['Retro drafts the finding', { type: 'retroProposes' }],
+  approve: ['Owner approves the text', { type: 'ownerApproves' }],
+  rejectText: ['Owner rejects the text', { type: 'ownerRejectsText' }],
+  dup: ['Duplicate found', { type: 'duplicateFound' }],
+  ready: ['Triage: Ready', { type: 'triageReady' }],
+  investigate: ['Triage: Investigate', { type: 'triageInvestigate' }],
+  dismiss: ['Triage: Dismiss', { type: 'triageDismiss' }],
+  freeze: ['Eval author freezes cases', { type: 'freeze' }],
+  repFail: ['Reproduce: fails on both (0/3, 1/3)', { type: 'reproduce', incumbentPasses: { Opus: 0, Sonnet: 1 } }],
+  repPass: ['Reproduce: Opus passes 2/3', { type: 'reproduce', incumbentPasses: { Opus: 2, Sonnet: 0 } }],
+  implement: ['Implementer makes one change', { type: 'implement' }],
+  merge: ['Owner merges', { type: 'ownerMerges' }],
+  decline: ['Owner declines the PR', { type: 'ownerDeclinesPr' }],
+  checkIn: ['Owner clears the $300 check-in', { type: 'ownerCheckIn' }],
+  kill: ['Toggle kill switch', { type: 'toggleKill' }],
+  otherPr: ['Toggle another j-build loop PR', { type: 'toggleOtherPr' }],
+  month290: ['Set month spend to $290', { type: 'setMonthSpent', value: 290 }],
+};
+for (const [k, g] of Object.entries(GATES)) A['gate_' + k] = [g.label, { type: 'gate', results: g.r }];
+
+const SCENARIOS = [
+  { name: 'Happy path', text: 'The first finding goes from retrospective to a draft PR. Watch the labels change at each step, and note that nothing becomes public until the owner approves the text.', steps: ['propose', 'approve', 'ready', 'freeze', 'repFail', 'implement', 'gate_clean', 'merge'] },
+  { name: 'Not reproduced', text: 'The frozen case does not catch the failure: the incumbent already passes on Opus. No implementer runs; the finding goes back to Investigate, the cases unfreeze for a better one, and only the reproduce runs are spent.', steps: ['propose', 'approve', 'ready', 'freeze', 'repPass'] },
+  { name: 'Holdout miss, then a fix', text: 'Attempt 1 passes the target but fails the reworded soft holdout: a fix tailored to one wording. Attempt 2 passes. Watch spend per finding against the $100 cap, and try it again with the cost slider at $0.75 and reuse off.', steps: ['propose', 'approve', 'ready', 'freeze', 'repFail', 'implement', 'gate_holdout', 'implement', 'gate_clean'] },
+  { name: 'Models disagree, then out', text: 'Opus passes but Sonnet misses the target: inconclusive. Attempt 2 regresses a j-build probe on Opus: rejected. The attempt cap is reached and the finding goes to the owner. Is "one model misses" as inconclusive right, while "one model regresses" is rejected?', steps: ['propose', 'approve', 'ready', 'freeze', 'repFail', 'implement', 'gate_sonnet', 'implement', 'gate_regress'] },
+  { name: 'Gaming the eval', text: 'The candidate scores perfectly, but a frozen case changed after freezing. The gate rejects it regardless of the scores. Then try freezing again: it is refused.', steps: ['propose', 'approve', 'ready', 'freeze', 'repFail', 'implement', 'gate_hash', 'freeze'] },
+  { name: 'Spend and switches', text: 'Month-to-date spend starts at $290. The first gate pushes it past $300 and the loop pauses for the owner. Another j-build PR then blocks the next attempt, and the kill switch stops everything.', steps: ['month290', 'propose', 'approve', 'ready', 'freeze', 'repFail', 'implement', 'gate_infra', 'implement', 'checkIn', 'otherPr', 'implement', 'otherPr', 'kill', 'implement'] },
+  { name: 'Not allowed', text: 'Steps out of order: implement before reproducing, run the gate with no candidate, triage before filing, and merge with no PR. Each is refused with a reason and the state does not change.', steps: ['implement', 'gate_clean', 'ready', 'propose', 'ready', 'approve', 'implement', 'merge'] },
+];
+
+let settings = { costPerRun: 0.51, reuseIncumbent: true };
+let state = Loop.initial(settings), prev = state, log = [], tab = 0, stepIdx = 0;
+
+function dispatch(action) {
+  const r = Loop.reduce(state, action);
+  prev = state; state = r.state;
+  if (r.note) log.unshift({ note: r.note, kind: r.kind, outcome: action.type === 'gate' ? state.outcomes.at(-1) : null });
+  render();
+}
+function reset() { state = Loop.initial(settings); prev = state; log = []; stepIdx = 0; }
+
+function field(k, label, value) {
+  const changed = JSON.stringify(prev[k]) !== JSON.stringify(state[k]);
+  return `<dt>${label}</dt><dd class="${changed ? 'changed' : ''}">${value}</dd>`;
+}
+function render() {
+  const L = Loop.labels(state);
+  const est = (Loop.attemptRuns({ ...state, attempt: state.attempt }) * state.costPerRun).toFixed(2);
+  document.getElementById('state').innerHTML = `
+  <div class="card"><dl>
+    ${field('stage', 'Queue state', state.stage + (state.withHuman ? ' (with the owner)' : ''))}
+    <dt>GitHub issue</dt><dd>${L.status}<br>${L.labels.map(x => `<span class="chip">${x}</span>`).join('') || '<span class="muted">no labels</span>'}</dd>
+    ${field('owningSkill', 'Owning skill', state.owningSkill)}
+  </dl></div>
+  <div class="card"><dl>
+    ${field('frozen', 'Cases frozen', state.frozen ? 'yes (target, soft holdout, two controls)' : 'no')}
+    ${field('reproduced', 'Failure reproduced', state.reproduced === null ? 'not yet' : state.reproduced ? 'yes' : 'no')}
+    ${field('attempt', 'Attempts used', state.attempt + ' of ' + Loop.CAPS.attempts)}
+    ${field('prOpen', 'Draft PRs open', state.prOpen ? 'jstack and jstack-evals' : 'none')}
+  </dl></div>
+  <div class="card"><dl>
+    ${field('spentFinding', 'Spent on this finding', '$' + state.spentFinding + ' of $' + Loop.CAPS.perFinding)}
+    ${field('spentMonth', 'Spent this month', '$' + state.spentMonth + ' (check-in $300, cap $500)')}
+    <dt>Next attempt would cost</dt><dd>about $${est} (${Loop.attemptRuns(state)} runs at $${state.costPerRun})</dd>
+    ${field('monthPaused', 'Paused for owner', state.monthPaused ? 'yes' : 'no')}
+    ${field('killSwitch', 'Kill switch', state.killSwitch ? 'on' : 'off')}
+    ${field('otherLoopPrForSkill', 'Another j-build loop PR open', state.otherLoopPrForSkill ? 'yes' : 'no')}
+  </dl></div>
+  <div class="card"><dl><dt>Gate outcomes</dt><dd>${state.outcomes.length ? state.outcomes.map(o => `<div><span class="${o.outcome === 'accepted' ? 'ok' : o.outcome === 'rejected' ? 'bad' : 'warn'}">Attempt ${o.attempt}: ${o.outcome}</span><div class="muted" style="font-weight:400;font-size:13px">${o.reasons.join(' ')}</div></div>`).join('') : '<span class="muted">none yet</span>'}</dd></dl></div>`;
+  document.getElementById('log').innerHTML = log.map(e => `<div class="${e.kind === 'bad' ? 'bad' : e.kind === 'warn' ? 'warn' : ''}">${e.kind === 'bad' ? 'Refused: ' : ''}${e.note}</div>`).join('') || '<span class="muted">Nothing yet.</span>';
+  const sc = SCENARIOS[tab];
+  document.getElementById('tabs').innerHTML = SCENARIOS.map((s, i) => `<button class="${i === tab ? 'on' : ''}" onclick="selectTab(${i})">${s.name}</button>`).join('');
+  document.getElementById('scenario').innerHTML = `<p>${sc.text}</p><ol class="steps">${sc.steps.map((k, i) => `<li class="${i < stepIdx ? 'done' : ''}"><button ${i === stepIdx ? 'class="primary"' : 'disabled'} onclick="step()">${A[k][0]}</button></li>`).join('')}</ol><button onclick="selectTab(${tab})">Restart this walkthrough</button>`;
+  document.getElementById('cpr').value = state.costPerRun; document.getElementById('cprv').textContent = '$' + state.costPerRun.toFixed(2);
+  document.getElementById('reuse').checked = state.reuseIncumbent;
+}
+function selectTab(i) { tab = i; reset(); render(); }
+function step() { const k = SCENARIOS[tab].steps[stepIdx]; stepIdx++; dispatch(A[k][1]); }
+
+const groups = [['Filing', ['propose', 'approve', 'rejectText', 'dup']], ['Triage', ['ready', 'investigate', 'dismiss']], ['Eval and attempt', ['freeze', 'repFail', 'repPass', 'implement']], ['Gate results', Object.keys(GATES).map(k => 'gate_' + k)], ['Owner and switches', ['merge', 'decline', 'checkIn', 'month290', 'otherPr', 'kill']]];
+document.getElementById('free').innerHTML = groups.map(([g, ks]) => `<div class="group"><b>${g}</b>${ks.map(k => `<button data-k="${k}">${A[k][0]}</button>`).join('')}</div>`).join('') + '<div class="group"><button onclick="reset();render()">Reset to start</button></div>';
+document.getElementById('free').addEventListener('click', e => { const k = e.target.dataset.k; if (k) dispatch(A[k][1]); });
+document.getElementById('cpr').addEventListener('input', e => { settings.costPerRun = +e.target.value; dispatch({ type: 'settings', patch: { costPerRun: +e.target.value } }); });
+document.getElementById('reuse').addEventListener('change', e => { settings.reuseIncumbent = e.target.checked; dispatch({ type: 'settings', patch: { reuseIncumbent: e.target.checked } }); });
+render();
+</script>
+</body>
+</html>
