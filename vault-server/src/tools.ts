@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/server";
 import { GitHubError, headSha, readFile, snapshotAt, writeFile, type Repo } from "./github";
 import { indexFile, semanticMatches, type VaultIndex } from "./semantic";
-import { capturePath, captureText, droppedIndexEntries, frontmatter, fuse, INDEX_SECTIONS, indexEntryProblems, isPageType, lint, logLine, search, skills, upsertIndex, wikiProblems, writablePath, type Capture, type Files } from "./vault";
+import { capturePath, captureText, droppedIndexEntries, frontmatter, fuse, guideText, INDEX_SECTIONS, indexEntryProblems, isPageType, lint, logLine, search, skills, upsertIndex, wikiProblems, writablePath, type Capture, type Files } from "./vault";
 
 export interface VaultEnv {
   OAUTH_KV: KVNamespace;
@@ -29,7 +29,7 @@ const str = (description: string) => ({ type: "string", description });
 const READ = { readOnlyHint: true };
 
 export const TOOLS: Tool[] = [
-  { name: "guide", description: "The vault's rules (AGENTS.md) and its index of pages. Call once before using the vault.", inputSchema: { type: "object", properties: {} }, annotations: READ },
+  { name: "guide", description: "The vault's rules (AGENTS.md) and how many pages its index lists. Call once before using the vault; find pages with `search`.", inputSchema: { type: "object", properties: {} }, annotations: READ },
   { name: "search", description: "Search wiki pages and captured sources by keyword and by meaning, so pages worded differently from the query still match. Returns paths, titles, review dates and snippets; wiki pages rank above raw captures. `match` says whether a hit matched by keyword, meaning, or both. `stale: true` means the page is past its volatility window: re-verify before relying on it. `superseded_by` names the page that replaces it: read that instead. Read a page before relying on it.", inputSchema: { type: "object", properties: { query: str("Words to search for"), limit: { type: "number", description: "Max results, default 8" } }, required: ["query"] }, annotations: READ },
   { name: "read", description: "Read one vault file by path, e.g. 'wiki/LLM wiki maintenance.md'. Returns its text and sha (needed to replace it).", inputSchema: { type: "object", properties: { path: str("Path from the vault root") }, required: ["path"] }, annotations: READ },
   { name: "list", description: "List vault file paths under a folder (e.g. 'wiki/' or 'raw/2026-11/').", inputSchema: { type: "object", properties: { prefix: str("Folder prefix; empty for everything") } }, annotations: READ },
@@ -99,8 +99,8 @@ export function vaultServer(env: VaultEnv): Server {
   const call = async (name: string, args: Record<string, unknown>): Promise<string> => {
     switch (name) {
       case "guide": {
-        const { files } = await vaultFiles();
-        return `${files["AGENTS.md"] ?? "(no AGENTS.md)"}\n\n---\n\n${files["index.md"] ?? "(no index.md)"}`;
+        const [rules, index] = await Promise.all([readFile(vault, "AGENTS.md"), readFile(vault, "index.md")]);
+        return guideText(rules?.text, index?.text);
       }
       case "search": {
         const query = String(args.query ?? "");
