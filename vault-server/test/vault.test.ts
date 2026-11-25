@@ -263,7 +263,7 @@ describe("index entries", () => {
     expect(indexEntryProblems(entry("Page", "first line\nsecond line"))).toEqual(["summary must be one line"]);
     expect(indexEntryProblems(entry("Page", ""))).toEqual(["summary is empty"]);
     expect(indexEntryProblems(entry("", "ok"))).toEqual(["title is empty"]);
-    for (const title of ["A]]: injected", "A|alias", "A#heading", "[[A", "A\nB"]) expect(indexEntryProblems(entry(title, "ok")), title).toHaveLength(1);
+    for (const title of ["A]]: injected", "A|alias", "A#heading", "[[A", "A\nB", "../AGENTS", "sub/page", "a\\b"]) expect(indexEntryProblems(entry(title, "ok")), title).toHaveLength(1);
   });
 
   it("finds pages a rewrite of index.md would drop, ignoring entries for deleted pages", () => {

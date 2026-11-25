@@ -175,7 +175,7 @@ export type IndexEntry = { title: string; summary: string };
 export function indexEntryProblems(entry: IndexEntry): string[] {
   const problems: string[] = [];
   if (!entry.title) problems.push("title is empty");
-  if (/[\r\n[\]|#]/.test(entry.title)) problems.push("title must be one line with no [, ], | or #");
+  if (/[\r\n[\]|#/\\]/.test(entry.title)) problems.push("title must be one line with no [, ], |, #, / or \\");
   if (!entry.summary) problems.push("summary is empty");
   if (/[\r\n]/.test(entry.summary)) problems.push("summary must be one line");
   if (entry.summary.length > SUMMARY_MAX) problems.push(`summary is ${entry.summary.length} characters; keep it to ${SUMMARY_MAX}`);
