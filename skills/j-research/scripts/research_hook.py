@@ -10,6 +10,11 @@ nothing and notes the error on stderr.
 Chosen over a Haiku call after a comparison on 71 labelled prompts (jstack-evals
 experiments/2026-11-08-trigger-classifier): Jev fired on 40/40 research prompts
 and 0/31 others, at a median of about 165 ms; Haiku 39/40 and 0/31 at about 710 ms.
+None of those 71 scored in the unsettled band, so its cut-off comes from the firing log
+instead (2026-11-25, about 3,000 prompts): firing in the band only when the task is clearly
+not self-contained cut the fire rate from 34% to 27%. Of the 207 prompts it silenced, labelling
+found one that clearly needed research and four that might; the rest were briefs, messages
+relayed between agent threads, confirmations and instructions.
 
 Every classified prompt is appended to a local JSON Lines log (scores, decision, first 300
 characters of the prompt) so false fires can be labelled before anyone tunes the questions:
@@ -41,7 +46,9 @@ REMINDER = (
     "Use the j-research skill before answering: check the vault, then current sources, and cite them."
 )
 
-# Wording and thresholds tested in the comparison above; change them together and re-run it.
+# Wording and the clear-signal threshold were tested in the comparison above; change them together
+# and re-run it. The unsettled-band cut-off in decide() was set from the firing log, which that
+# comparison does not cover.
 QUESTIONS = {
     "changing_facts": {"type": "noul", "instructions": "Would a good answer to `message` rely on current facts about products or services outside the person's own project?",
         "criteria": {"true": "The answer depends on current versions, prices, limits, recent releases, or which outside products and services exist.",
@@ -59,12 +66,12 @@ QUESTIONS = {
 
 
 def decide(a: dict) -> bool:
-    """A clear research signal fires; an unsettled one fires only if the task is not clearly self-contained."""
+    """A clear research signal fires; an unsettled one fires only if the task is clearly not self-contained."""
     signal = max(a["changing_facts"], a["build_or_choose"], a["reliance"])
     if signal > YES:
         return True
     if signal > NO:
-        return a["self_contained"] < YES
+        return a["self_contained"] < NO
     return False
 
 

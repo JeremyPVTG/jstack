@@ -18,9 +18,10 @@ def answers(changing=0.0, build=0.0, reliance=0.0, contained=0.0):
 class Decide(unittest.TestCase):
     def test_clear_signal_fires_even_if_contained(self):
         self.assertTrue(hook.decide(answers(build=0.9, contained=0.9)))
-    def test_unsettled_fires_only_when_not_contained(self):
-        self.assertTrue(hook.decide(answers(changing=0.5, contained=0.4)))
-        self.assertFalse(hook.decide(answers(changing=0.5, contained=0.8)))
+    def test_unsettled_fires_only_when_clearly_not_contained(self):
+        self.assertTrue(hook.decide(answers(changing=0.5, contained=0.29)))
+        self.assertFalse(hook.decide(answers(changing=0.5, contained=0.30)))
+        self.assertFalse(hook.decide(answers(build=0.45, contained=0.69)))
     def test_no_signal_does_not_fire(self):
         self.assertFalse(hook.decide(answers(changing=0.2, contained=0.1)))
 
