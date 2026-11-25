@@ -49,7 +49,7 @@ Deliver a build plan: steps, versions, the reference you copy from, known pitfal
 
 ## 6. Compile into the vault
 
-Follow the vault's `AGENTS.md`: save each decisive source to `raw/` (never edited afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, update `index.md`, append one line to `log.md`, then lint and fix errors. Save what a future you needs to check the conclusion, not every search hit.
+Follow the vault's `AGENTS.md`: save each decisive source to `raw/` (never edited afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, list each new page in `index.md` (one line; with the vault server, `add_to_index`), append one line to `log.md`, then lint and fix errors. Save what a future you needs to check the conclusion, not every search hit.
 
 ## Report
 

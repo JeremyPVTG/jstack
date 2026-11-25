@@ -6,7 +6,7 @@ A persistent, compounding research wiki maintained by agents and read by a perso
 
 - `raw/YYYY-MM/` captured sources. One file per source. Never edit after capture; if a source changes, capture it again.
 - `wiki/` compiled pages, flat, one idea per page. The agent writes these.
-- `index.md` every wiki page with a one-line summary, grouped by type. Read it first.
+- `index.md` every wiki page with a one-line summary of at most 280 characters ending with the date, grouped by type. Read it first.
 - `log.md` append-only record of ingests, research runs, and lint passes.
 - `.gitattributes` marks `index.md` and `log.md` for union merges, so agents appending from different machines do not stop the sync.
 
@@ -58,7 +58,7 @@ Rules:
 
 ## Operations
 
-- **Research run.** Read `index.md` and relevant pages, research, capture decisive sources to `raw/`, update the pages they touch, update `index.md`, log it.
+- **Research run.** Read `index.md` and relevant pages, research, capture decisive sources to `raw/`, update the pages they touch, list each new page in `index.md`, log it. Add or change one index line at a time (on the vault MCP server, `add_to_index`); rewrite the whole file only to restructure it.
 - **Ingest.** A person drops a file in `raw/`: summarise it, update the pages it touches, log it.
 - **Lint.** End every session that writes here with `python3 <j-research skill>/scripts/vault_lint.py <this vault>`. Fix every error (broken links, missing frontmatter, pages missing from the index). Warnings list stale pages and orphans; re-verify stale pages the next time their topic comes up, and link orphans from a related page. Contradictions between pages need judgement, not the script: check them when updating a page.
 
