@@ -68,6 +68,27 @@ class LoopSkill(unittest.TestCase):
         self.assertGreaterEqual(len(named), 10)
         self.assertEqual(named - set(commands), set())
 
+    def test_the_implementer_brief_gives_the_finding_body_and_points_at_no_eval_material(self):
+        text = (SKILL / 'references' / 'briefs.md').read_text()
+        brief = re.search(r'^## Implementer\n\n```text\n(.*?)^```$', text, re.S | re.M).group(1)
+        self.assertIn('<issue title and body>', brief)
+        for forbidden in ('comments', 'jstack-evals', 'run directories'):
+            self.assertIn(forbidden, brief)
+        for placeholder in ('<work>', '<evals>', '<judges bundle>'):
+            self.assertNotIn(placeholder, brief)
+
+    def test_every_reproduce_and_gate_outcome_gets_a_record_pr_and_only_accepted_gets_a_skill_pr(self):
+        skill = (SKILL / 'SKILL.md').read_text()
+        pair = (SKILL / 'references' / 'pr-pair.md').read_text()
+        for step in ('reproduce', 'gate'):
+            section = re.search(rf'^### {step}\n(.*?)(?=^### )', skill, re.S | re.M).group(1)
+            self.assertIn('references/pr-pair.md#1-experiment-record-every-outcome', section)
+        self.assertIn('harness/retro-loop/record.py', pair)
+        self.assertIn('harness/retro-loop/records/<N>/', pair)
+        self.assertNotIn('experiments/', pair)
+        self.assertRegex(pair, r'(?m)^## 1\. Experiment record \(every outcome\)$')
+        self.assertRegex(pair, r'(?m)^## 2\. Skill change \(accepted only\)$')
+
     def test_pr_body_templates_carry_the_sections_the_pr_hook_requires(self):
         text = (SKILL / 'references' / 'pr-pair.md').read_text()
         bodies = [b for b in re.findall(r'^````markdown\n(.*?)^````$', text, re.S | re.M) if '## Summary' in b]

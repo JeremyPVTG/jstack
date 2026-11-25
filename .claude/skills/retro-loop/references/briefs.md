@@ -1,6 +1,6 @@
 # Delegate briefs
 
-A delegate starts with this brief and nothing else, so each one is complete. Fill every `<...>` before sending: `<N>`, `<skill>`, `<jstack>`, `<evals>` and `<work>` come from the plan and the config, and the finding text is pasted from `gh issue view <N> -R JeremyPVTG/jstack`.
+A delegate starts with this brief and nothing else, so each one is complete. Fill every `<...>` before sending: `<N>`, `<skill>`, `<jstack>`, `<evals>` and `<work>` come from the plan and the config. The implementer's finding text is the issue's title and body only, from `gh issue view <N> -R JeremyPVTG/jstack --json title,body`; never paste its comments, which carry the gate's results.
 
 ## Triage
 
@@ -48,13 +48,15 @@ and <work>/cases/<N>/FROZEN.md: the date, every case hash, the checker's sha256,
 ```text
 You are the implementer for retro finding #<N> in jstack (owning skill: <skill>, attempt <k> of 2), in your own jstack worktree.
 
-The finding:
+The finding (its title and body):
 <issue title and body>
 
 <attempt 2 only: Attempt 1 made the change below and the gate did not accept it.
 <git diff main...loop/<skill>/<N>-attempt-1>>
 
-Make one bounded, coherent change to skills/<skill>/ (SKILL.md and its references) that fixes the behaviour the finding describes, in any wording of the same situation. Keep SKILL.md within 20% of its current size, and follow AGENTS.md and the commit trailers in README.md. Work from the finding and the skill; the eval cases for this finding live elsewhere and are not part of the task.
+Make one bounded, coherent change to skills/<skill>/ (SKILL.md and its references) that fixes the behaviour the finding describes, in any wording of the same situation. Keep SKILL.md within 20% of its current size, and follow AGENTS.md and the commit trailers in README.md.
+
+Work from the finding above and the skill alone. The eval cases and results for this finding are kept from you on purpose, so do not read the issue's comments (on GitHub or through gh), the jstack-evals repository (its experiment records, harness or pull requests), or the retro loop's run directories. A change shaped by them would fit the eval instead of fixing the behaviour.
 
 1. git switch -c loop/<skill>/<N> main
 2. Edit, then run python3 scripts/check.py and python3 -m unittest discover -s tests.
