@@ -275,6 +275,20 @@ describe("index entries", () => {
   });
 });
 
+describe("index lint", () => {
+  const files = (index: string) => ({ ...base(), "index.md": index, "wiki/A.md": page("A", "See [[B]]."), "wiki/B.md": page("B", "See [[A]].") });
+
+  it("warns once for all entries over 280 characters, naming the longest", () => {
+    const index = `- [[A]]: ${"a".repeat(300)}\n- [[B]]: ${"b".repeat(320)}\n- [[A vs C]]: ${"c".repeat(280)}\n`;
+    expect(lint({ ...files(index), "wiki/A vs C.md": page("A vs C", "[[A]]"), "wiki/B.md": page("B", "See [[A]] and [[A vs C]].") }, today).warnings).toEqual(["index.md: 2 entries over 280 characters (longest: B, 320)"]);
+    expect(lint(files("- [[A]]: short\n- [[B]]: short\n"), today).warnings).toEqual([]);
+  });
+
+  it("points unlisted pages at add_to_index", () => {
+    expect(lint(files("- [[A]]: short\n"), today).errors).toEqual(["wiki/B: not listed in index.md (fix: add_to_index)"]);
+  });
+});
+
 describe("skills", () => {
   it("lists skills with frontmatter and files", () => {
     const files = { "skills/j-research/SKILL.md": "---\nname: j-research\ndescription: Research things.\n---\n", "skills/j-research/references/sources.md": "x", "README.md": "x" };

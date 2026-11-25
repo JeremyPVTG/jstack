@@ -155,9 +155,17 @@ export function lint(files: Files, today: Date): { errors: string[]; warnings: s
   }
   for (const rel of [...byPath.values()].filter((r) => r.startsWith("wiki/")).sort()) {
     const from = inbound.get(rel) ?? new Set();
-    if (!from.has("index")) errors.push(`${rel}: not listed in index.md`);
+    if (!from.has("index")) errors.push(`${rel}: not listed in index.md (fix: add_to_index)`);
     if (![...from].some((source) => source !== "index")) warnings.push(`${rel}: orphan, no other page links to it`);
   }
+  const long = (files["index.md"] ?? "")
+    .split("\n")
+    .flatMap((line) => {
+      const entry = line.match(ENTRY);
+      return entry && entry[2].length > SUMMARY_MAX ? [{ title: entry[1], length: entry[2].length }] : [];
+    })
+    .sort((x, y) => y.length - x.length);
+  if (long.length) warnings.push(`index.md: ${long.length} entries over ${SUMMARY_MAX} characters (longest: ${long[0].title}, ${long[0].length})`);
   return { errors, warnings };
 }
 
