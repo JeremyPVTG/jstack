@@ -1,10 +1,13 @@
+from contextlib import redirect_stderr, redirect_stdout
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 import importlib.util
+import io
 import json
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'scripts' / 'retro_loop.py'
@@ -69,6 +72,12 @@ class FakeGitHub:
 
     def comment(self, number, body):
         self.issues[number]['comments'].append(body)
+
+    def create_issue(self, title, body, labels):
+        number = max(self.issues, default=40) + 1
+        self.issues[number] = {'number': number, 'title': title, 'body': body, 'labels': list(labels),
+                               'state': 'OPEN', 'state_reason': None, 'comments': []}
+        return number
 
     def close(self, number, reason, comment):
         issue = self.issues[number]
@@ -147,6 +156,10 @@ class TriageTest(LoopTest):
         self.assertEqual((issue['state'], issue['state_reason']), ('CLOSED', 'NOT_PLANNED'))
         self.assertEqual(self.github.labels(21), ['retro-finding', 'wontfix'])
         self.assertIn('Not a skill problem.', issue['comments'][-1])
+        self.github.add(22)
+        self.runner.triage(22, 'dismiss', 'Duplicate of #21.')
+        self.assertEqual((self.github.issues[22]['state_reason'], self.github.labels(22)),
+                         ('NOT_PLANNED', ['retro-finding', 'wontfix']))
 
     def test_illegal_triage_is_refused_and_changes_nothing(self):
         self.github.add(21, labels=['retro-finding', 'loop:investigate'])
@@ -419,6 +432,46 @@ class PickTest(LoopTest):
         self.assertIn('open loop draft PR', plan['refused'])
 
 
+class FilingTest(LoopTest):
+    BODY = 'What the agent did.\n\nOwning skill: j-build\n'
+
+    def test_an_approved_text_is_filed_as_a_new_retro_finding(self):
+        report = self.runner.file('Review lenses not rerun', self.BODY, 'approved')
+        number = report['filed']
+        self.assertEqual(self.github.labels(number), ['needs-triage', 'retro-finding'])
+        self.assertEqual(self.github.issues[number]['body'], self.BODY)
+        self.assertEqual(self.runner.next(number)['step'], 'triage')
+
+    def test_a_rejected_text_files_nothing(self):
+        report = self.runner.file('Review lenses not rerun', self.BODY, 'rejected')
+        self.assertEqual((report['filed'], report['refused']), (None, None))
+        self.assertEqual(self.github.issues, {})
+
+    def test_a_duplicate_adds_evidence_to_the_existing_finding(self):
+        self.github.add(21)
+        report = self.runner.file('Same friction again', 'Seen again.\n\nOwning skill: j-build\n', 'approved',
+                                  duplicate_of=21)
+        self.assertEqual((report['filed'], report['commented']), (None, 21))
+        self.assertEqual(list(self.github.issues), [21])
+        self.assertIn('Seen again.', self.github.issues[21]['comments'][-1])
+
+    def test_filing_needs_an_owning_skill_and_a_duplicate_must_be_an_open_finding(self):
+        self.github.add(21, state='CLOSED', reason='COMPLETED')
+        self.assertIn('owning skill', self.runner.file('t', 'No skill named.', 'approved')['refused'])
+        self.assertIn('#21', self.runner.file('t', self.BODY, 'approved', duplicate_of=21)['refused'])
+        self.assertEqual(self.github.issues[21]['comments'], [])
+        self.assertEqual(list(self.github.issues), [21])
+
+
+class LabelTest(LoopTest):
+    def test_labels_are_created_once_and_existing_ones_are_left_alone(self):
+        first = self.runner.ensure_labels()
+        self.assertEqual(sorted(first['created']), ['loop:in-progress', 'loop:inconclusive', 'loop:investigate',
+                                                    'loop:ready', 'loop:rejected', 'loop:verify'])
+        self.assertIn('retro-finding', first['existing'])
+        self.assertEqual(self.runner.ensure_labels()['created'], [])
+
+
 class GuardTest(LoopTest):
     def every_step(self, number=21):
         return {
@@ -518,6 +571,132 @@ class GuardTest(LoopTest):
         self.assertEqual(self.github.issues, before)
         self.github.prs = ['loop/j-review/30']
         self.assertIsNone(self.runner.implement(22)['refused'])
+
+
+class GhAdapterTest(unittest.TestCase):
+    """The adapter's contract with gh: the argv it sends and the JSON shapes it reads. No real gh is run."""
+
+    def setUp(self):
+        self.calls = []
+        self.replies = []
+
+    def fake_gh(self, argv, **kwargs):
+        self.calls.append((argv, kwargs.get('input')))
+        code, out = self.replies.pop(0) if self.replies else (0, '')
+        return mock.Mock(returncode=code, stdout=out, stderr='boom' if code else '')
+
+    def test_reads_issues_into_the_runner_shape(self):
+        gh = rl.GhGitHub('owner/repo', run=self.fake_gh)
+        self.replies = [(0, json.dumps({'number': 21, 'title': 't', 'body': None, 'state': 'CLOSED',
+                                        'stateReason': 'NOT_PLANNED', 'labels': [{'name': 'retro-finding'}]}))]
+        self.assertEqual(gh.issue(21), {'number': 21, 'title': 't', 'body': '', 'labels': ['retro-finding'],
+                                        'state': 'CLOSED', 'state_reason': 'NOT_PLANNED'})
+        self.assertEqual(self.calls[0][0][:4], ['gh', 'issue', 'view', '21'])
+        self.assertIn('owner/repo', self.calls[0][0])
+
+    def test_writes_labels_comments_closure_and_new_issues(self):
+        gh = rl.GhGitHub(None, run=self.fake_gh)
+        self.replies = [(0, ''), (0, ''), (0, ''), (0, 'https://github.com/o/r/issues/42\n')]
+        gh.edit_labels(21, ['loop:ready', 'ready-for-agent'], ['needs-triage'])
+        gh.comment(21, 'Why: it reproduces.')
+        gh.close(21, 'not planned', 'Dismissed.')
+        number = gh.create_issue('Title', 'Body', ['retro-finding', 'needs-triage'])
+        argv = [call[0] for call in self.calls]
+        self.assertEqual(argv[0], ['gh', 'issue', 'edit', '21', '--add-label', 'loop:ready,ready-for-agent',
+                                   '--remove-label', 'needs-triage'])
+        self.assertEqual((argv[1][:5], self.calls[1][1]), (['gh', 'issue', 'comment', '21', '--body-file'],
+                                                           'Why: it reproduces.'))
+        self.assertEqual(argv[2], ['gh', 'issue', 'close', '21', '--reason', 'not planned', '--comment', 'Dismissed.'])
+        self.assertEqual(number, 42)
+        self.assertEqual(argv[3].count('--label'), 2)
+
+    def test_reports_pull_request_heads_and_states(self):
+        gh = rl.GhGitHub(None, run=self.fake_gh)
+        self.replies = [(0, json.dumps([{'headRefName': 'loop/j-build/21'}])),
+                        (0, json.dumps([{'number': 3, 'state': 'CLOSED'}, {'number': 7, 'state': 'MERGED'}])),
+                        (0, '[]')]
+        self.assertEqual(gh.open_pr_heads(), ['loop/j-build/21'])
+        self.assertEqual(gh.pr_state('loop/j-build/21'), 'MERGED')
+        self.assertIsNone(gh.pr_state('loop/j-build/22'))
+
+    def test_a_failed_gh_call_is_an_error(self):
+        gh = rl.GhGitHub(None, run=self.fake_gh)
+        self.replies = [(1, '')]
+        with self.assertRaises(rl.GitHubError):
+            gh.comment(21, 'x')
+
+
+class GateCommandTest(unittest.TestCase):
+    """The gate adapter runs a stand-in gate script that prints recorded output."""
+
+    def script(self, code, out):
+        path = Path(tempfile.mkdtemp()) / 'gate.py'
+        path.write_text(f'import sys\nprint({out!r})\nsys.exit({code})\n')
+        return path
+
+    def test_returns_the_printed_decision(self):
+        out = json.dumps({'mode': 'reproduce', 'outcome': 'reproduced', 'reasons': [], 'runs': 6, 'cost_usd': 3.1})
+        self.assertEqual(rl.GateCommand(self.script(0, out)).decide('m.json')['outcome'], 'reproduced')
+
+    def test_a_malformed_manifest_exit_is_a_loop_error(self):
+        with self.assertRaises(rl.GateError):
+            rl.GateCommand(self.script(2, '')).decide('m.json')
+
+
+class CliTest(LoopTest):
+    def cli(self, *argv, gate_script=None):
+        args = ['--ledger', str(self.dir / 'ledger.json'), '--kill-switch', str(self.dir / 'loop.disabled')]
+        args += ['--gate-script', str(gate_script)] if gate_script else []
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = rl.main(args + list(argv), github=self.github)
+        return code, json.loads(out.getvalue())
+
+    def test_a_step_prints_its_report_and_a_refusal_exits_3(self):
+        self.github.add(21)
+        code, report = self.cli('triage', '21', '--decision', 'ready', '--reason', 'Clear owning skill.')
+        self.assertEqual((code, report['to']), (0, 'Ready'))
+        code, report = self.cli('triage', '21', '--decision', 'ready', '--reason', 'Again.')
+        self.assertEqual(code, 3)
+        self.assertTrue(report['refused'])
+        code, plan = self.cli('next')
+        self.assertEqual((code, plan['finding'], plan['step']), (0, 21, 'freeze'))
+
+    def test_freeze_and_reproduce_through_the_gate_command(self):
+        self.github.add(21, labels=READY)
+        cases = self.dir / 'cases.json'
+        cases.write_text(json.dumps(CASES))
+        self.assertEqual(self.cli('freeze', '21', '--cases', str(cases))[0], 0)
+        gate = self.dir / 'gate.py'
+        gate.write_text('import json\nprint(json.dumps({"outcome": "reproduced", "reasons": ["opus 0/3"], '
+                        '"runs": 6, "cost_usd": 3.06, "infra_retry_used": False}))\n')
+        code, report = self.cli('reproduce', '21', '--manifest', str(self.manifest()), gate_script=gate)
+        self.assertEqual((code, report['outcome']), (0, 'reproduced'))
+        code, entries = self.cli('ledger', '--finding', '21')
+        self.assertEqual([e['step'] for e in entries], ['freeze', 'reproduce'])
+        self.assertEqual(entries[-1]['usd'], 3.06)
+
+    def test_spend_check_in_labels_and_filing(self):
+        self.assertEqual(self.cli('spend', '21', '--usd', '300', '--role', 'implementer')[1]['check_in_pending'], True)
+        self.assertEqual(self.cli('check-in')[0], 0)
+        self.assertEqual(self.cli('ensure-labels')[1]['existing'][-1], 'wontfix')
+        body = self.dir / 'body.md'
+        body.write_text('Owning skill: j-build\n')
+        code, report = self.cli('file', '--title', 'T', '--body-file', str(body), '--owner', 'approved')
+        self.assertEqual((code, self.github.labels(report['filed'])), (0, ['needs-triage', 'retro-finding']))
+
+    def test_a_gate_command_failure_exits_1_without_a_report(self):
+        self.ready_and_frozen()
+        gate = self.dir / 'gate.py'
+        gate.write_text('import sys\nsys.exit(2)\n')
+        err = io.StringIO()
+        with redirect_stderr(err), redirect_stdout(io.StringIO()):
+            code = rl.main(['--ledger', str(self.dir / 'ledger.json'), '--kill-switch', str(self.dir / 'k'),
+                            '--gate-script', str(gate), 'reproduce', '21', '--manifest', str(self.manifest())],
+                           github=self.github)
+        self.assertEqual(code, 1)
+        self.assertIn('gate', err.getvalue())
+        self.assertEqual(self.github.labels(21), sorted(READY))
 
 
 if __name__ == '__main__':

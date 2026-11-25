@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
-"""Retro improvement loop runner: move one retro finding one legal step at a time (ADR 0005)."""
+"""Retro improvement loop runner: move one retro finding one legal step at a time (ADR 0005).
+
+A finding's state lives in its GitHub labels and closure; spend, attempts, frozen case hashes and
+outcomes live in an append-only ledger file. The runner never calls a paid model. The loop skill
+asks `next` for the step (it changes nothing and applies every stop), runs any agent or eval work
+the step needs, then records the result with that step's command. Each command prints a JSON
+report; it exits 0 when it acted, 3 when it refused (changing nothing) and 1 on an error.
+"""
+import argparse
 from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
 import re
+import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+KILL_SWITCH = 'loop.disabled'
 
 STATE_LABELS = {
     'Filed': ('needs-triage',),
@@ -20,6 +31,19 @@ STATE_LABELS = {
     'Done': (),
 }
 CLOSE_REASON = {'Done': 'completed', 'Dismissed': 'not planned'}
+LABELS = {
+    'retro-finding': ('5319E7', 'Finding from a j-launch retrospective, handled by the improvement loop'),
+    'needs-triage': ('FBCA04', 'Maintainer needs to evaluate this issue'),
+    'ready-for-agent': ('0E8A16', 'Fully specified, ready for an AFK agent'),
+    'ready-for-human': ('1D76DB', 'Requires human implementation'),
+    'wontfix': ('FFFFFF', 'This will not be worked on'),
+    'loop:investigate': ('D4C5F9', 'Retro loop: needs more evidence or a better eval case'),
+    'loop:ready': ('0E8A16', 'Retro loop: triaged, waiting for its next loop step'),
+    'loop:in-progress': ('1D76DB', 'Retro loop: an implementer attempt is running'),
+    'loop:verify': ('5319E7', 'Retro loop: gate accepted, draft PRs wait for the owner'),
+    'loop:rejected': ('B60205', 'Retro loop: an attempt was rejected by the gate'),
+    'loop:inconclusive': ('C5DEF5', 'Retro loop: an attempt or step was inconclusive'),
+}
 
 TRIAGE = {
     # decision: (states it may leave, state it enters)
@@ -166,8 +190,6 @@ class Runner:
         self.skills = Path(skills)
         self.cost_per_run = cost_per_run
 
-    # ---- ledger ----
-
     def ledger_entries(self, number=None):
         return list(self.ledger.entries if number is None else self.ledger.of(number))
 
@@ -203,14 +225,10 @@ class Runner:
         facts['spent'] = money(facts['spent'])
         return facts
 
-    # ---- planning ----
-
     def check_in_pending(self):
         month = self.month()
         checked = any(e['step'] == 'check-in' and e['at'].startswith(month) for e in self.ledger.entries)
         return self.month_spent() >= CHECK_IN_AT and not checked
-
-    # ---- guards ----
 
     def guard(self, step=None):
         """Stops that apply to every finding. Settling a merged or closed PR only obeys the kill switch."""
@@ -247,8 +265,6 @@ class Runner:
         if heads:
             return f'{skill} already has an open loop draft PR ({heads[0]}): one per skill, so this finding waits.'
         return None
-
-    # ---- planning ----
 
     def attempt_runs(self, attempt_before):
         return RUNS['reuse'] if attempt_before >= 1 else RUNS['full']
@@ -318,8 +334,6 @@ class Runner:
             return unsettled[0]
         return {'finding': None, 'step': None, 'refused': self.guard() or 'No Filed or Ready finding can move.'}
 
-    # ---- GitHub writes ----
-
     def move(self, issue, to, comment, outcome=None):
         number = issue['number']
         current = state_of(issue)
@@ -327,13 +341,17 @@ class Runner:
         remove = [l for l in STATE_LABELS[current] if l not in STATE_LABELS[to] and l in issue['labels']]
         if add or remove:
             self.github.edit_labels(number, add, remove)
+        if to == 'With owner' and current != to:
+            comment += ('\n\nTo return it to the loop, remove ready-for-human and add loop:ready and '
+                        'ready-for-agent (or loop:investigate).')
         if to in CLOSE_REASON and current != to:
             self.github.close(number, CLOSE_REASON[to], comment)
         else:
             self.github.comment(number, comment)
 
-    def spend_note(self, number, result):
-        spent = self.facts(self.github.issue(number))['spent']
+    def spend_note(self, facts, result):
+        """Totals after a recorded gate command result; facts are the ones read before recording it."""
+        spent = money(facts['spent'] + result['cost_usd'])
         return (f"Runs: {result['runs']}. Cost: ${result['cost_usd']:.2f}. "
                 f'Spent on this finding: ${spent:.2f} of ${PER_FINDING_CAP}. Month to date: ${self.month_spent():.2f}.')
 
@@ -348,8 +366,6 @@ class Runner:
         if refused:
             raise Refused(refused)
         return issue, state
-
-    # ---- steps ----
 
     @reported
     def triage(self, number, decision, reason, owning=None):
@@ -433,7 +449,7 @@ class Runner:
             'inconclusive': ('With owner', 'Loop reproduce: inconclusive after a second infrastructure fault. '
                              'Handed to the owner.'),
         }[outcome]
-        lines = [head, ''] + ['- ' + reason for reason in reasons] + ['', self.spend_note(number, result)]
+        lines = [head, ''] + ['- ' + reason for reason in reasons] + ['', self.spend_note(facts, result)]
         self.move(issue, to, '\n'.join(lines), outcome='inconclusive' if outcome == 'inconclusive' else None)
         return {'finding': number, 'step': 'reproduce', 'from': state, 'to': to, 'outcome': outcome,
                 'reasons': reasons, 'refused': None}
@@ -476,7 +492,7 @@ class Runner:
         else:
             to, head = 'Ready', f"Loop gate: {outcome}. Back to Ready for attempt {facts['attempt'] + 1}."
         lines = [head, '', f"Attempt {facts['attempt']} of {ATTEMPT_CAP}.", '']
-        lines += ['- ' + reason for reason in reasons] + ['', self.spend_note(number, result)]
+        lines += ['- ' + reason for reason in reasons] + ['', self.spend_note(facts, result)]
         self.move(issue, to, '\n'.join(lines), outcome=outcome if outcome in ('rejected', 'inconclusive') else None)
         return {'finding': number, 'step': 'gate', 'from': state, 'to': to, 'outcome': outcome, 'reasons': reasons,
                 'refused': None}
@@ -521,9 +537,215 @@ class Runner:
         return {'finding': number, 'step': 'spend', 'usd': round(float(usd), 4), 'refused': None,
                 'month_spent_usd': self.month_spent(), 'check_in_pending': self.check_in_pending()}
 
+    def file(self, title, body, decision, duplicate_of=None):
+        """File an owner-approved retrospective draft, or add it as evidence to a matching finding.
+
+        Filing belongs to the retrospective, not the loop, so the kill switch and caps do not apply.
+        """
+        report = {'finding': duplicate_of, 'step': 'file', 'filed': None, 'commented': None, 'refused': None}
+        if decision == 'rejected':
+            return {**report, 'note': 'The owner rejected the text: nothing filed.'}
+        if decision != 'approved':
+            return {**report, 'refused': 'The owner decision must be approved or rejected.'}
+        if not owning_skill(body):
+            return {**report, 'refused': 'The text must name its owning skill on an "Owning skill: <name>" line.'}
+        if duplicate_of is not None:
+            issue = self.github.issue(duplicate_of)
+            if issue.get('state', 'OPEN') != 'OPEN' or 'retro-finding' not in issue['labels']:
+                return {**report, 'refused': f'#{duplicate_of} is not an open retro finding.'}
+            self.github.comment(duplicate_of, 'More evidence from a retrospective:\n\n' + body)
+            return {**report, 'commented': duplicate_of}
+        number = self.github.create_issue(title, body, ['retro-finding', 'needs-triage'])
+        return {**report, 'finding': number, 'filed': number}
+
+    def ensure_labels(self):
+        """Create the labels the loop uses that the repository lacks. Running it again changes nothing."""
+        existing = self.github.label_names()
+        created = []
+        for name, (color, description) in LABELS.items():
+            if name not in existing:
+                self.github.create_label(name, color, description)
+                created.append(name)
+        return {'step': 'ensure-labels', 'created': created, 'existing': sorted(set(LABELS) & existing),
+                'refused': None}
+
     def check_in(self):
         """The owner clears this month's check-in pause."""
         if not self.check_in_pending():
             return {'finding': None, 'step': 'check-in', 'refused': 'No check-in is pending this month.'}
         self.record(None, 'check-in')
         return {'finding': None, 'step': 'check-in', 'refused': None, 'month_spent_usd': self.month_spent()}
+
+
+class GhGitHub:
+    """The runner's only route to GitHub: a few `gh` calls, with issues shaped as the runner reads them."""
+
+    def __init__(self, repo=None, run=subprocess.run):
+        self.repo = repo
+        self.run = run
+
+    def gh(self, *args, input=None):
+        argv = ['gh', *args] + (['-R', self.repo] if self.repo else [])
+        proc = self.run(argv, input=input, capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise GitHubError(f"gh {' '.join(args[:2])} failed: {proc.stderr.strip()}")
+        return proc.stdout
+
+    @staticmethod
+    def shape(raw):
+        return {'number': raw['number'], 'title': raw.get('title', ''), 'body': raw.get('body') or '',
+                'labels': [label['name'] for label in raw.get('labels', [])], 'state': raw.get('state', 'OPEN'),
+                'state_reason': raw.get('stateReason') or None}
+
+    def findings(self):
+        out = self.gh('issue', 'list', '--label', 'retro-finding', '--state', 'open', '--limit', '500',
+                      '--json', 'number,title,body,labels')
+        return [self.shape(raw) for raw in json.loads(out)]
+
+    def issue(self, number):
+        out = self.gh('issue', 'view', str(number), '--json', 'number,title,body,labels,state,stateReason')
+        return self.shape(json.loads(out))
+
+    def edit_labels(self, number, add, remove):
+        args = ['issue', 'edit', str(number)]
+        args += ['--add-label', ','.join(add)] if add else []
+        args += ['--remove-label', ','.join(remove)] if remove else []
+        self.gh(*args)
+
+    def comment(self, number, body):
+        self.gh('issue', 'comment', str(number), '--body-file', '-', input=body)
+
+    def close(self, number, reason, comment):
+        self.gh('issue', 'close', str(number), '--reason', reason, '--comment', comment)
+
+    def create_issue(self, title, body, labels):
+        args = ['issue', 'create', '--title', title, '--body-file', '-']
+        for label in labels:
+            args += ['--label', label]
+        url = self.gh(*args, input=body).strip()
+        return int(url.rstrip('/').rsplit('/', 1)[1])
+
+    def open_pr_heads(self):
+        out = self.gh('pr', 'list', '--state', 'open', '--limit', '500', '--json', 'headRefName')
+        return [pr['headRefName'] for pr in json.loads(out)]
+
+    def pr_state(self, head):
+        """OPEN, MERGED or CLOSED for the newest PR from this branch, or None when there is none."""
+        prs = json.loads(self.gh('pr', 'list', '--head', head, '--state', 'all', '--limit', '20',
+                                 '--json', 'number,state'))
+        return max(prs, key=lambda pr: pr['number'])['state'] if prs else None
+
+    def label_names(self):
+        return {label['name'] for label in json.loads(self.gh('label', 'list', '--limit', '500', '--json', 'name'))}
+
+    def create_label(self, name, color, description):
+        self.gh('label', 'create', name, '--color', color, '--description', description)
+
+
+class GateCommand:
+    """The jstack-evals gate command: `python3 <gate.py> decide <manifest>` prints one JSON decision."""
+
+    def __init__(self, script, run=subprocess.run):
+        self.script = Path(script)
+        self.run = run
+
+    def decide(self, manifest):
+        proc = self.run([sys.executable, str(self.script), 'decide', str(manifest)], capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise GateError(f'gate command exited {proc.returncode}: {proc.stderr.strip() or "no message"}')
+        try:
+            return json.loads(proc.stdout)
+        except ValueError:
+            raise GateError('gate command printed no JSON decision') from None
+
+
+def default_ledger():
+    return Path(os.environ.get('JSTACK_RETRO_LEDGER', '~/.local/state/jstack/retro-loop/ledger.json')).expanduser()
+
+
+def parser():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('--ledger', type=Path, default=None, help='spend and outcome ledger (default: $JSTACK_RETRO_LEDGER '
+                   'or ~/.local/state/jstack/retro-loop/ledger.json)')
+    p.add_argument('--kill-switch', type=Path, default=ROOT / KILL_SWITCH,
+                   help=f'the loop does nothing while this file exists (default: {KILL_SWITCH} in the jstack checkout)')
+    p.add_argument('--repo', help='OWNER/REPO for gh (default: the current checkout)')
+    p.add_argument('--gate-script', type=Path, help='jstack-evals gate.py, needed by reproduce and gate')
+    p.add_argument('--cost-per-run', type=float, default=COST_PER_RUN, help='estimate per eval run in USD')
+    sub = p.add_subparsers(dest='command', required=True)
+    n = sub.add_parser('next', help='plan the next legal step; changes nothing')
+    n.add_argument('--finding', type=int)
+    t = sub.add_parser('triage', help="record triage's decision")
+    t.add_argument('finding', type=int)
+    t.add_argument('--decision', required=True, choices=sorted(TRIAGE))
+    t.add_argument('--reason', required=True)
+    t.add_argument('--owning-skill')
+    f = sub.add_parser('freeze', help="record the eval author's frozen case hashes")
+    f.add_argument('finding', type=int)
+    f.add_argument('--cases', type=Path, required=True, help='JSON: {target, holdout, controls} with name and sha256')
+    for name, about in (('reproduce', 'decide a reproduce manifest with the gate command'),
+                        ('gate', "decide an attempt's gate manifest with the gate command")):
+        g = sub.add_parser(name, help=about)
+        g.add_argument('finding', type=int)
+        g.add_argument('--manifest', type=Path, required=True)
+    for name, about in (('implement', 'start the next attempt (In progress) before the implementer runs'),
+                        ('handoff', 'hand a finding the caps stop to the owner'),
+                        ('settle', "close or hand back a Verify finding once its draft PR is merged or closed")):
+        sub.add_parser(name, help=about).add_argument('finding', type=int)
+    s = sub.add_parser('spend', help='record what an agent step cost')
+    s.add_argument('finding', type=int)
+    s.add_argument('--usd', type=float, required=True)
+    s.add_argument('--role', required=True, help='triage, eval-author, implementer, judges, ...')
+    s.add_argument('--note')
+    sub.add_parser('check-in', help="the owner clears this month's check-in pause")
+    fi = sub.add_parser('file', help='file an owner-approved retrospective draft, or add it to a duplicate')
+    fi.add_argument('--title', required=True)
+    fi.add_argument('--body-file', type=Path, required=True)
+    fi.add_argument('--owner', required=True, choices=['approved', 'rejected'], help="the owner's decision on the text")
+    fi.add_argument('--duplicate-of', type=int)
+    sub.add_parser('ensure-labels', help='create the loop labels the repository lacks; safe to repeat')
+    le = sub.add_parser('ledger', help='print ledger entries')
+    le.add_argument('--finding', type=int)
+    return p
+
+
+def main(argv=None, github=None, gate=None):
+    args = parser().parse_args(argv)
+    github = github or GhGitHub(args.repo)
+    if gate is None and args.gate_script:
+        gate = GateCommand(args.gate_script)
+    try:
+        if args.command in ('reproduce', 'gate') and gate is None:
+            raise GateError('pass --gate-script: the jstack-evals gate.py')
+        runner = Runner(github, args.ledger or default_ledger(), args.kill_switch, gate=gate,
+                        cost_per_run=args.cost_per_run)
+        command = args.command
+        if command == 'next':
+            report = runner.next(args.finding)
+        elif command == 'triage':
+            report = runner.triage(args.finding, args.decision, args.reason, owning=args.owning_skill)
+        elif command == 'freeze':
+            report = runner.freeze(args.finding, json.loads(args.cases.read_text()))
+        elif command in ('reproduce', 'gate'):
+            report = getattr(runner, command)(args.finding, args.manifest)
+        elif command in ('implement', 'handoff', 'settle'):
+            report = getattr(runner, command)(args.finding)
+        elif command == 'spend':
+            report = runner.spend(args.finding, args.usd, args.role, note=args.note)
+        elif command == 'check-in':
+            report = runner.check_in()
+        elif command == 'file':
+            report = runner.file(args.title, args.body_file.read_text(), args.owner, duplicate_of=args.duplicate_of)
+        elif command == 'ensure-labels':
+            report = runner.ensure_labels()
+        else:
+            report = runner.ledger_entries(args.finding)
+    except (GitHubError, GateError, OSError, ValueError) as error:
+        print('retro_loop:', error, file=sys.stderr)
+        return 1
+    print(json.dumps(report, indent=2))
+    return 3 if isinstance(report, dict) and report.get('refused') else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
