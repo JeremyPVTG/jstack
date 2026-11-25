@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "jvault",
+  // Needs Workers Paid: guide and search parse the whole vault, well over Free's 10 ms CPU. See docs/decisions/0004.
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
