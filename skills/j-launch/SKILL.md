@@ -26,7 +26,7 @@ This is a launch gate: do not call the launch tool until all three rows are comp
 ## 3. Write the brief
 
 - With a user-only owner, the message is `/<skill> <brief>`: the command, then the brief as its arguments. Otherwise the message is the brief.
-- The brief includes the three-collection selection record and a closing retrospective requirement from step 5.
+- The brief includes the three-collection selection record and a closing retrospective requirement from step 5 that names j-launch, so the thread loads the filing steps from their source.
 - The brief holds: the goal and done line; links to the work item and its inputs; each skill by name with when to use it; decisions made in this conversation that no file holds yet; traps found here, with their evidence; what is ruled out; and when to stop for the owner.
 - Leave out what the thread reads for itself: the project's instruction files, the owner's standing rules and memory, each skill's own steps. A restated rule drifts from its source.
 
@@ -38,8 +38,15 @@ This is a launch gate: do not call the launch tool until all three rows are comp
 
 ## 5. Close with a routing retrospective
 
-Require the launched thread to finish with a short retrospective after verification, or when blocked. Use mattpocock `retro` if available and permitted by its invocation metadata; otherwise perform this bounded review directly. Do not start a replacement thread, delegate, or extra model call just for this step.
+Require the launched thread to finish with a short retrospective after verification, or when blocked. Use mattpocock `retro` if available and permitted by its invocation metadata; otherwise perform this bounded review directly. Do not start a replacement thread, delegate, or extra model call for this step or its filing.
 
 Compare the selection record with actual execution: which skills were loaded and used, which helped, which duplicated or conflicted, and whether any omitted collection offered a better fit. Ground findings in observed rework, missed checks, blockers, or unnecessary tool calls. Recommend the best owner/helper/shipping combination for the next similar task, with a reason; if evidence is insufficient, say so. A successful result alone does not prove the skill choice was best.
 
 Report concrete routing improvements to the owner. A recommendation does not authorize edits to skills, project instructions, settings, or memory. Preserve the task's existing approval boundaries.
+
+File each **retro finding** in jstack's public tracker (`JeremyPVTG/jstack` on GitHub), whatever project the thread ran in. A retro finding is a concrete failure, repeated friction, missed check or workflow conflict the review observed, with its evidence; a preference or an untested idea stays in the report. For each one:
+
+1. **Evidence.** Save the raw evidence (thread excerpts, commands and output) as a page in the owner's private research vault. With no private vault connected, report the finding and file nothing.
+2. **Search.** List open findings with `gh issue list --repo JeremyPVTG/jstack --label retro-finding --search "<keywords>"` and read the likely matches. A match is an open finding about the same failure in the same owning skill.
+3. **Draft.** Write sanitized text: no thread transcripts, personal paths, account or provider routing, secrets or customer details. Name the **owning skill** and its collection (the skill whose text would change, not necessarily j-launch), then state what the agent did, what should have happened, how to check it, and the vault page's path. For a match, draft a comment adding this evidence; otherwise draft a new issue titled with what should happen.
+4. **Approve and file.** Show the owner the exact text and file only what they approve: the comment on the match, or a new issue labelled `retro-finding` and `needs-triage`. A rejected draft files nothing. Filing is done when every finding is filed, added to its match or rejected, and the report links each issue or comment.
