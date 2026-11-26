@@ -9,13 +9,13 @@ Research compounds: check what is already known, find what is current, and leave
 
 Every run, in every mode:
 
-1. Search the vault before the web. Before citing a vault page, open it with the vault's read tool: search results show only snippets.
+1. Search the vault before the web. Before citing a vault page, open it (the vault's read tool, or the file in a checkout): search results show only snippets.
 2. Answer only from what you read in this run: vault pages inside their window and sources you opened. Having loaded this skill, do not answer from training knowledge, even when the question looks like design advice.
 3. Cite each decisive fact with its source and date.
 
 ## 0. Vault
 
-Use the vault MCP server if connected (call its `guide` once), else the local vault folder, else work without one ([vault access](references/vault.md)). The vault's own rules override this skill.
+Use the vault server if one is configured (call its `guide` once). If it is missing, refused or failing, say so and use direct access through a vault checkout, running the vault steps by hand; else work without one ([vault access](references/vault.md)). The vault's own rules override this skill.
 
 ## 1. Pick the mode
 
@@ -49,11 +49,11 @@ Deliver a build plan: steps, versions, the reference you copy from, known pitfal
 
 ## 6. Compile into the vault
 
-Follow the vault's `AGENTS.md`: save each decisive source to `raw/` (never edited afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, list each new page in `index.md` (one line; with the vault server, `add_to_index`), append one line to `log.md`, then lint and fix errors. Save what a future you needs to check the conclusion, not every search hit.
+Follow the vault's `AGENTS.md`: save each decisive source to `raw/` (never edited afterwards), create or update the `wiki/` pages the findings touch, record contradictions on the page instead of silently picking one, list each new page in `index.md` (one line; with the vault server, `add_to_index`; in a checkout, by hand), append one line to `log.md`, then lint and fix errors (in a checkout, then push). Save what a future you needs to check the conclusion, not every search hit.
 
 ## Report
 
-Lead with the answer and link the vault page; the detail lives there. Make the evidence status visible: tie each decisive fact to its source and date, mark conclusions you drew yourself as inference, and say plainly what you looked for and did not find. When a vault page you used was past its window, say so and what changed. End with one coverage line: each lane searched, the providers used and what each gave, including empty or missing ones (for example "social: last30days not installed").
+Lead with the answer and link the vault page; the detail lives there. Make the evidence status visible: tie each decisive fact to its source and date, mark conclusions you drew yourself as inference, and say plainly what you looked for and did not find. When a vault page you used was past its window, say so and what changed. End with one coverage line: how the vault was reached, each lane searched, the providers used and what each gave, including empty or missing ones (for example "social: last30days not installed").
 
 When the research feeds a build, buy, or scope decision and the vault has a research council brief, offer that review before the decision is acted on.
 

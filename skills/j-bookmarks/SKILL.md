@@ -16,6 +16,7 @@ Saved posts are a backlog of half-made decisions. This skill gives every bookmar
 ```json
 {
   "research_vault": "~/path/to/vault",
+  "research_vault_repo": "owner/vault-repo",
   "x_bookmarks": {
     "ledger": "triage/x-bookmarks.md",
     "areas": {
