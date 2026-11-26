@@ -2,3 +2,5 @@
 .external/
 __pycache__/
 .local/
+.claude/skills/retro-loop/config.local.json
+loop.disabled

@@ -1,0 +1,17 @@
+{
+  "note": "Copy to config.local.json in this folder (gitignored) and replace every <...> placeholder. The retro-loop skill reads only config.local.json. Paths may start with ~.",
+  "paths": {
+    "jstack": "<path to the main jstack checkout>",
+    "evals": "<path to the jstack-evals checkout>",
+    "work": "~/.local/share/jstack-retro-loop"
+  },
+  "roles": {
+    "triage": {"providerInstanceId": "<Claude provider instance>", "model": "claude-opus-5-5", "options": {"effort": "medium"}},
+    "eval_author": {"providerInstanceId": "<Codex provider instance>", "model": "gpt-6.1-sol", "options": {"reasoningEffort": "high"}},
+    "implementer": {"providerInstanceId": "<Claude provider instance>", "model": "claude-opus-5-5", "options": {"effort": "xhigh"}},
+    "judges": [
+      {"providerInstanceId": "<Codex provider instance>", "model": "gpt-6.1-sol", "options": {"reasoningEffort": "high"}},
+      {"providerInstanceId": "<Cursor provider instance>", "model": "grok-4.7", "options": {"fastMode": true}}
+    ]
+  }
+}
