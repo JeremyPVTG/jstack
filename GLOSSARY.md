@@ -44,3 +44,16 @@ The predeclared comparison of candidate against incumbent that decides whether a
 
 **Outcome**:
 The recorded result of one gate: accepted, rejected or inconclusive.
+
+## Research vault
+
+**Vault server**:
+The MCP server that reads and writes the research vault on an agent's behalf and enforces its rules.
+
+**Vault checkout**:
+A git working copy of the research vault's repository: the owner's configured local folder or a temporary clone.
+_Avoid_: Local vault (when it means a clone)
+
+**Direct access**:
+Reading and writing the research vault through a vault checkout, doing by hand what the vault server would do, when the vault server is unavailable.
+_Avoid_: Fallback mode, offline mode
